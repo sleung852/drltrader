@@ -26,6 +26,8 @@ class AssetData:
         logging.info('Preparing price data...')
         self._read_base_data()
         self._add_daily_data()
+        logging.info(str(self.price_data.shape))
+        logging.info(str(self.relative_prices.shape))
         self._add_indicators()
         self.relative_prices['volume_1min'] = self.relative_prices['volume_1min'].pct_change()
         if self.news:
@@ -36,6 +38,7 @@ class AssetData:
         self.relative_prices = self.price_data.copy()
         for col in ['high', 'low', 'close']:
             self.relative_prices[f'{col}_1min'] = (self.relative_prices[f'{col}_1min'] - self.relative_prices['open_1min']) / self.relative_prices['open_1min']
+        print('debug done')
         
     def _add_daily_data(self):
         if not self.daily:
