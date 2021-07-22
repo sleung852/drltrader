@@ -1,7 +1,9 @@
 from torch import nn
+import torch.nn.functional as F
 import pfrl
 import torch
 import numpy as np
+import math
 from pfrl.nn import BoundByTanh, ConcatObsAndAction
 from pfrl.policies import DeterministicHead
 
@@ -9,12 +11,30 @@ from pfrl.policies import DeterministicHead
 Noisy Layers
 """
 class NoisyLinear(nn.Linear):
-    def __init__(self,
-                 in_features,
-                 out_features,
-                 sigma_init=0.015,
-                 bias=True):
-        w = torch.full((in_features, out_features), sigma_init)
+    """
+    https://github.com/PacktPublishing/Deep-Reinforcement-Learning-Hands-On-Second-Edition/blob/master/Chapter10/lib/models.py
+    """
+    def __init__(self, in_features, out_features, sigma_init=0.017, bias=True):
+        super(NoisyLinear, self).__init__(in_features, out_features, bias=bias)
+        self.sigma_weight = nn.Parameter(torch.full((out_features, in_features), sigma_init))
+        self.register_buffer("epsilon_weight", torch.zeros(out_features, in_features))
+        if bias:
+            self.sigma_bias = nn.Parameter(torch.full((out_features,), sigma_init))
+            self.register_buffer("epsilon_bias", torch.zeros(out_features))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        std = math.sqrt(3 / self.in_features)
+        self.weight.data.uniform_(-std, std)
+        self.bias.data.uniform_(-std, std)
+
+    def forward(self, input):
+        self.epsilon_weight.normal_()
+        bias = self.bias
+        if bias is not None:
+            self.epsilon_bias.normal_()
+            bias = bias + self.sigma_bias * self.epsilon_bias
+        return F.linear(input, self.weight + self.sigma_weight * self.epsilon_weight, bias)
 
 
 """ 
@@ -46,21 +66,23 @@ class DRQN(nn.Module):
 class DRQN_CustomNet(nn.Module):
     def __init__(self, obs_size, n_actions, hidden_size, n_layers):
         super().__init__()
-        self.l1 = nn.LSTM(obs_size, hidden_size, n_layers)
-        self.l2 = nn.Linear(hidden_size, n_actions)
-
+        self.l1 = nn.LSTM(obs_size, hidden_size, n_layers, batch_first=True)
+        self.l2 = pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, n_actions))
+        self.dropout = nn.Dropout()
+        
     def forward(self, x):
-        h = x
-        _, (h,_) = self.l1(h)
-        h = self.dropout(h[-1,:,:])
+        # x = x.unsqueeze(0)
+        out = self.l1(x)[0]
+        # out = out.unsqueeze
+        h = self.dropout(out[:,-1,:])
         h = self.l2(h)
-        return pfrl.action_value.DiscreteActionValue(h)
+        return pfrl.action_value.DiscreteActionValue(h) 
     
 class GDQN_CustomNet(nn.Module):
     def __init__(self, obs_size, hidden_size, n_layers, n_actions):
         super().__init__()
         self.gru = nn.GRU(obs_size, hidden_size, n_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, n_actions)
+        self.fc = pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, n_actions))
         self.dropout = nn.Dropout()
 
     def forward(self, x):

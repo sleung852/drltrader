@@ -9,9 +9,8 @@ import os
 from pathlib import Path
 
 from environ import SimStocksEnv
-from model import DuellingNet, FCNet
+from model import DRQN_CustomNet, GDQN_CustomNet
 from data import AssetData
-from train import DRLAlgoTraderTrainer
 from util import save_config, check_and_create_folder
 
 import logging
@@ -40,7 +39,7 @@ if __name__ == '__main__':
     parser.add_argument("--outdir", type=str, default="results")
     parser.add_argument("--gamma", type=float, default=0.99)
     # network settings
-    parser.add_argument('--model', type=str, default='FC', choices = ['FC', 'Duelling', 'DRQN'])
+    parser.add_argument('--model', type=str, default='LSTM', choices=['LSTM', 'GRU'])
     parser.add_argument('--hidden_size', type=int, default=512)
     parser.add_argument('--load_model', type=str, default='')
     args = parser.parse_args()
@@ -49,12 +48,12 @@ if __name__ == '__main__':
             # environment related
             'mode': 'train',
             'random_offset': args.random_offset,
-            'cnn': args.model == 'CNN',
-            'rnn': False,
+            'cnn': False,
+            'rnn': True,
             # state related
             'commission': args.commission, 
             'window_size': args.window_size,
-            'dim_mode': 2 if args.model == 'CNN' else 1,
+            'dim_mode': 2,
             'shortsell': args.shortsell
         }
     
@@ -122,26 +121,22 @@ if __name__ == '__main__':
         )
     
     test_env = SimStocksEnv(test_data, env_params_val)
-    obs_size = test_env.observation_space.low.size
+    obs_size = test_env.observation_space.shape[1]
     n_actions = test_env.action_space.n
     
-    if args.model == 'Duelling':
-        q_func = DuellingNet(
+    if args.model == 'LSTM':
+        q_func = DRQN_CustomNet(
                 obs_size,
                 n_actions,
                 args.hidden_size,
+                2
         )
-    elif args.model == 'FC':
-        q_func = FCNet(
-            obs_size= obs_size,
-            n_actions= n_actions,
-            hidden_size=args.hidden_size
-        )
-    elif args.model == 'DRQN':
-        q_func = FCNet(
-            obs_size= obs_size,
-            n_actions= n_actions,
-            hidden_size=args.hidden_size
+    elif args.model == 'GRU':
+        q_func = GDQN_CustomNet(
+            obs_size,
+            n_actions,
+            args.hidden_size,
+            2
         )
 
     optimizer = torch.optim.Adam(
