@@ -181,10 +181,10 @@ if __name__ == '__main__':
         steps=args.steps,
         eval_n_steps=None,
         eval_interval=10000,
-        eval_n_episodes=20,
+        eval_n_episodes=1,
         log_interval=100,
         max_episode_len=500,
-        eval_max_episode_len=int(1e6),
+        eval_max_episode_len=int(1e5),
         use_tensorboard=True
     )
     
