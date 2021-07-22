@@ -38,7 +38,6 @@ class AssetData:
         self.relative_prices = self.price_data.copy()
         for col in ['high', 'low', 'close']:
             self.relative_prices[f'{col}_1min'] = (self.relative_prices[f'{col}_1min'] - self.relative_prices['open_1min']) / self.relative_prices['open_1min']
-        print('debug done')
         
     def _add_daily_data(self):
         if not self.daily:
@@ -58,7 +57,11 @@ class AssetData:
             df_ohlc.columns = ['open', 'high', 'low', 'close', 'volume']
             for indicator in self.indicators:
                 indicator_func = abstract.Function(indicator)
-                self.relative_prices[indicator_func.output_names] = indicator_func(df_ohlc)
+                indicator_data = indicator_func(df_ohlc)
+                if len(indicator_func.output_names) == 1:
+                    self.relative_prices[indicator_func.output_names[0]] = indicator_data
+                else:
+                    self.relative_prices[indicator_func.output_names] = indicator_data
                 for output_name in indicator_func.output_names:
                     if self.relative_prices[output_name].mean() > 1:
                         self.relative_prices[output_name] /= self.relative_prices[f'open_1min']
