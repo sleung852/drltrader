@@ -142,6 +142,7 @@ if __name__ == '__main__':
     model_name = f'{args.model}_{args.hidden_size}_{args.window_size}_{args.ticker}'+f'_{args.name}'
     check_and_create_folder(os.path.join('result', model_name))
     save_config(env_params, os.path.join('result', model_name , 'env_params.json'))
+    save_config(vars(args), os.path.join('result', model_name , 'config.json'))
     
     trainer = DRLAlgoTraderTrainer(
         name=model_name,

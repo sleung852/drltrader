@@ -178,6 +178,7 @@ if __name__ == '__main__':
     model_name = f'{args.model}_{args.hidden_size}_{args.window_size}_{args.ticker}'+f'_{args.name}'
     check_and_create_folder(os.path.join('result', model_name))
     save_config(env_params, os.path.join('result', model_name , 'env_params.json'))
+    save_config(vars(args), os.path.join('result', model_name , 'config.json'))
     
     pfrl.experiments.train_agent_batch_with_evaluation(
         agent=agent,
@@ -186,7 +187,7 @@ if __name__ == '__main__':
         outdir=os.path.join('result', model_name),
         steps=args.steps,
         eval_n_steps=None,
-        eval_interval=10000,
+        eval_interval=100000, # recommend 100000 for efficiency
         eval_n_episodes=1,
         log_interval=100,
         max_episode_len=500,

@@ -11,7 +11,7 @@ class DRLAlgoTraderTrainer:
     def __init__(self,
                  name,
                  agent,
-                 max_steps,
+                 max_steps=100000,
                  train_env=None,
                  eval_env=None,
                  test_env=None,
@@ -19,7 +19,7 @@ class DRLAlgoTraderTrainer:
                  eval_max_episode_len=int(1e6),
                  eval_episode_interval=1000,
                  eval_n_episodes=1,
-                 outdir='result',
+                 outdir='result'
                  ):
         self.agent = agent
         self.max_steps = max_steps
@@ -31,7 +31,7 @@ class DRLAlgoTraderTrainer:
         self.eval_max_episode_len = eval_max_episode_len
         self.test_env = test_env
         self.outdir = os.path.join(outdir, name)
-        check_and_create_folder(self.outdir)
+        # check_and_create_folder(self.outdir)
         self.writer = SummaryWriter(comment=name)
         
         
@@ -119,12 +119,12 @@ class DRLAlgoTraderTrainer:
     
     def test_agent(self):
         with self.agent.eval_mode():
-            obs = self.eval_env.reset()
+            obs = self.test_env.reset()
             R = 0
             t = 0
             while True:
                 action = self.agent.act(obs)
-                obs, r, done, _ = self.eval_env.step(action)
+                obs, r, done, _ = self.test_env.step(action)
                 R += r
                 t += 1
                 reset = t == self.eval_max_episode_len
@@ -135,5 +135,67 @@ class DRLAlgoTraderTrainer:
                     break
         logging.info(f'Test result - Reward: {R}')
         return R
+    
+    def test_agent_detail(self):
+        with self.agent.eval_mode():
+            obs = self.test_env.reset()
+            R = 0
+            t = 0
+            rewards = []
+            actions = []
+            ts = []
+            while True:
+                action = self.agent.act(obs)
+                obs, r, done, _ = self.test_env.step(action)
+                R += r
+                t += 1
+                rewards.append(r)
+                actions.append(action)
+                ts.append(t)
+                reset = t == self.eval_max_episode_len
+                self.writer.add_scalar('test_reward/step', r, t)
+                self.writer.add_scalar('test_cum_reward/step', R, t)
+                self.agent.observe(obs, r, done, reset)
+                if t % (6.5*60*5) == 0:
+                    logging.info(f'Step: {t} Cum. Reward: {R:.4f}')
+                if done or reset:
+                    break
+        logging.info(f'Test result - Reward: {R}')
+        return rewards, actions, ts
+    
+    def benchmark_BnH(self):
+        obs = self.test_env.reset()
+        R = 0
+        t = 0
+        rewards = []
+        actions = []
+        ts = []
+        action = 1 # Buy
+        # first step is buy
+        _, r, done, _ = self.test_env.step(action)
+        R += r
+        t += 1
+        rewards.append(r)
+        actions.append(action)
+        ts.append(t)
+        action = 0 # Hold
+        self.writer.add_scalar('benchmark_reward/step', r, t)
+        self.writer.add_scalar('benchmark_cum_reward/step', R, t)
+        while True:
+            _, r, done, _ = self.test_env.step(action)
+            R += r
+            t += 1
+            rewards.append(r)
+            actions.append(action)
+            ts.append(t)
+            self.writer.add_scalar('benchmark_reward/step', r, t)
+            self.writer.add_scalar('benchmark_cum_reward/step', R, t)
+            if t % (6.5*60*5) == 0:
+                logging.info(f'Step: {t} Cum. Reward: {R:.4f}')
+            if done:
+                break
+        logging.info(f'Test result - Reward: {R}')
+        return rewards, actions, ts
+        
 
 

@@ -26,8 +26,6 @@ class AssetData:
         logging.info('Preparing price data...')
         self._read_base_data()
         self._add_daily_data()
-        logging.info(str(self.price_data.shape))
-        logging.info(str(self.relative_prices.shape))
         self._add_indicators()
         self.relative_prices['volume_1min'] = self.relative_prices['volume_1min'].pct_change()
         if self.news:

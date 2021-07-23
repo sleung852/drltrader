@@ -69,7 +69,7 @@ class SimStocksEnv(gym.Env):
             shape=self.state.shape, dtype=np.float32)
         # options
         self.random_offset = params['random_offset']
-        self.seed()
+        
         logging.info('Environment is ready.')
     
     def reset(self):
@@ -95,6 +95,7 @@ class SimStocksEnv(gym.Env):
     def seed(self, seed=None):
         self.np_random, seed1 = seeding.np_random(seed)
         seed2 = seeding.hash_seed(seed1 + 1) % 2 ** 31
+        self.state.set_seed(seed2)
         return [seed1, seed2]
 
 class Actions(enum.Enum):
@@ -206,6 +207,9 @@ class OneStockState:
         self.previous_price = current_price
         self.ind += 1
         return reward, done
+    
+    def set_seed(self, seed):
+        np.random.seed(seed)
     
 class OneStock2DState(OneStockState):
     
