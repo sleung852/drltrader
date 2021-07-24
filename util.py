@@ -22,7 +22,7 @@ def load_config(path):
     file = open(path, "r")
     config_dict = file.read()
     file.close()
-    return config_dict
+    return json.loads(config_dict)
 
 def check_and_create_folder( path):
     Path(path).mkdir(parents=True, exist_ok=True)

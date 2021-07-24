@@ -96,6 +96,7 @@ class SimStocksEnv(gym.Env):
         self.np_random, seed1 = seeding.np_random(seed)
         seed2 = seeding.hash_seed(seed1 + 1) % 2 ** 31
         self.state.set_seed(seed2)
+        logging.info(f"Environment Seed: {seed2}")
         return [seed1, seed2]
 
 class Actions(enum.Enum):

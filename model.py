@@ -79,16 +79,16 @@ class DRQN_CustomNet(nn.Module):
         return pfrl.action_value.DiscreteActionValue(h) 
     
 class GDQN_CustomNet(nn.Module):
-    def __init__(self, obs_size, hidden_size, n_layers, n_actions):
+    def __init__(self, obs_size, n_actions, hidden_size, n_layers):
         super().__init__()
-        self.gru = nn.GRU(obs_size, hidden_size, n_layers, batch_first=True)
-        self.fc = pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, n_actions))
+        self.l1 = nn.GRU(obs_size, hidden_size, n_layers, batch_first=True)
+        self.l2 = pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, n_actions))
         self.dropout = nn.Dropout()
 
     def forward(self, x):
-        out = self.gru(x)[0]
+        out = self.l1(x)[0]
         out = self.dropout(out[:,-1,:])
-        out = self.fc(out)
+        out = self.l2(out)
         return pfrl.action_value.DiscreteActionValue(out)
     
 class DuellingNet(nn.Module):

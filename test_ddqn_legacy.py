@@ -26,6 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('--env_config', type=str, default='')
     parser.add_argument("--name", type=str, default='')
     parser.add_argument("--gpu", type=bool, default=True)
+    parser.add_argument("--model", type=str, default='LSTM')
 
     args = parser.parse_args()
 
@@ -48,40 +49,41 @@ if __name__ == '__main__':
     
     env_params['mode'] = 'test'
     
-    print(config)
-    
     #ticker = config.ticker.lower()
     ticker = 'aapl'
     test_data_dir = f'data/{ticker}_finance_data_test.csv'
     
     # temporary solution
-    if config['indicators']:
+    if False:
+    #if env_params.indicators:
         indicators = ['MACD', 'EMA', 'MA', 'RSI', 'NATR', 'OBV']
     else:
         indicators = []
     
     test_data = AssetData(test_data_dir,
-                           daily=config['daily'],
-                           indicators=indicators,
-                           news=config['news'],
+                           daily=False, #config.daily,
+                           indicators=indicators, #args.indicators,
+                           news=False, # config.news,
                            mode='test')
     
     test_env = SimStocksEnv(test_data, env_params)
     obs_size = test_env.observation_space.shape[1]
     n_actions = test_env.action_space.n
     
-    if config["model"] == 'LSTM':
+    if args.model == 'LSTM':
         q_func = DRQN_CustomNet(
                 obs_size,
                 n_actions,
-                config["hidden_size"],
+                512,
+                #args.hidden_size,
                 2
         )
-    elif config["model"] == 'GRU':
+    elif args.model == 'GRU':
         q_func = GDQN_CustomNet(
             obs_size,
             n_actions,
-            config["hidden_size"],
+            512,
+            #args.hidden_size,
             2
         )
 
@@ -104,7 +106,7 @@ if __name__ == '__main__':
         q_function=q_func,
         optimizer=optimizer,
         replay_buffer=replay_buffer,
-        gamma=config["gamma"],
+        gamma=0.99,#args.gamma,
         explorer=explorer,
         minibatch_size=128,
         replay_start_size=10000,
@@ -114,7 +116,8 @@ if __name__ == '__main__':
     )
     
     agent.load(args.model_dir)
-    model_name = f'{config["model"]}_{config["hidden_size"]}_{config["window_size"]}_{config["ticker"]}'+f'_{config["name"]}'+'_test'
+    model_name = 'LSTM_512_10_aapl__test'
+    #model_name = f'{config.model}_{config.hidden_size}_{config.window_size}_{config.ticker}'+f'_{config.name}'+'_test'
     
     
     trainer = DRLAlgoTraderTrainer(
