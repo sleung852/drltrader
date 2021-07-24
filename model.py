@@ -204,18 +204,18 @@ class LSTMCritic(nn.Module):
 
     def __init__(self, obs_size, n_actions):
         super().__init__()
-
-        self.l1 = nn.LSTM(obs_size, 100, 2)
-        self.l2 = nn.Linear(50, n_actions)
+        
+        self.l1 = nn.LSTM(obs_size, 100, 2, batch_first=True)
+        self.l2 = nn.Linear(100, n_actions)
         self.l3 = nn.Sequential(
             BoundByTanh(low=0.0, high=1.0),
             DeterministicHead(),
         )
 
     def forward(self, x):
-        x = x.unsqueeze(0)
+        x = x.unsqueeze(1)
         out, (_,_) = self.l1(x)
-        h = out.squeeze(0)
+        h = out[:,-1,:]
         h = self.l2(h)
         out = self.l3(h)
         return out

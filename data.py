@@ -68,6 +68,8 @@ class AssetData:
         if self.news:
             if self.mode == 'train':
                 df_news = pd.read_csv('data/news_train.csv')
+            elif self.mode == 'eval':
+                df_news = pd.read_csv('data/news_eval.csv')    
             elif self.mode == 'test':
                 df_news = pd.read_csv('data/news_test.csv')
             df_news['time'] = pd.to_datetime(df_news['time']) 
@@ -98,7 +100,7 @@ class MultiAssetData:
     
     # quite messy at the moment, need fixing
     def _create_data(self):
-
+        logging.info(f'Loading {self.tickers[0]} data...') 
         df = pd.read_csv(self.data_dir_format.format(self.tickers[0], self.mode))
         df.columns = [df.columns[0]] + [f'{self.tickers[0].lower()}_' + c for c in df.columns[1:]]
         df['time'] = pd.to_datetime(df['time'])
@@ -119,7 +121,7 @@ class MultiAssetData:
         
         for ticker in self.tickers[1:]:
             assert isinstance(ticker, str)  
-            print(f'Loading {ticker} data...')    
+            logging.info(f'Loading {ticker} data...')    
             df_temp = pd.read_csv(self.data_dir_format.format(ticker, self.mode))
             df_temp.columns = [df_temp.columns[0]] + [f'{ticker.lower()}_' + c for c in df_temp.columns[1:]]
             df_temp['time'] = pd.to_datetime(df_temp['time'])
@@ -161,7 +163,7 @@ class MultiAssetData:
         for ticker in self.tickers:
             for col in ['high', 'low', 'close']:
                 self.relative_prices[f'{ticker.lower()}_{col}_1min'] = (self.relative_prices[f'{ticker.lower()}_{col}_1min'] - self.relative_prices[f'{ticker.lower()}_open_1min']) / self.relative_prices[f'{ticker.lower()}_open_1min']
-            if not self.only_intra:
+            if self.daily:
                 for day in [1,5,15,30,100]:
                     self.relative_prices[f'{ticker.lower()}_close_{day}d'] = (self.relative_prices[f'{ticker.lower()}_close_{day}d'] - self.relative_prices[f'{ticker.lower()}_open_1min']) / self.relative_prices[f'{ticker.lower()}_open_1min']
                     self.relative_prices[f'{ticker.lower()}_volume_{day}d'] = (self.relative_prices[f'{ticker.lower()}_volume_{day}d'] - self.relative_prices[f'{ticker.lower()}_volume_1min']) / self.relative_prices[f'{ticker.lower()}_volume_1min']

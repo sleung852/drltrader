@@ -250,6 +250,7 @@ class PortfolioEnv(gym.Env):
         if params is None:
             params = {
                 # environment related
+                'tickers': ['aapl', 'amzn'],
                 'mode': 'train',
                 'random_offset': True,
                 'cnn': False,
@@ -271,12 +272,12 @@ class PortfolioEnv(gym.Env):
         if params['cash']:
             self.action_space = gym.spaces.Box(
                 low=0, high=1,
-                shape=(len(self.tickers)+2,), dtype=np.float32
+                shape=(len(params['tickers'])+2,), dtype=np.float32
             ) # 1 is for the position for cash, 1 for postion adjustment boolean
         else:
             self.action_space = gym.spaces.Box(
                 low=0, high=1,
-                shape=(len(self.tickers)+1,), dtype=np.float32
+                shape=(len(params['tickers'])+1,), dtype=np.float32
             ) # 1 for postion adjustment boolean
         self.observation_space = gym.spaces.Box(
             low=-np.inf, high=np.inf,
@@ -307,6 +308,13 @@ class PortfolioEnv(gym.Env):
 
     def close(self):
         pass
+        
+    def seed(self, seed=None):
+        self.np_random, seed1 = seeding.np_random(seed)
+        seed2 = seeding.hash_seed(seed1 + 1) % 2 ** 31
+        self.state.set_seed(seed2)
+        logging.info(f"Environment Seed 1: {seed2}")
+        return [seed1, seed2]
     
 class MultiStockState:
     def __init__(self, findata, params):
@@ -315,6 +323,9 @@ class MultiStockState:
         self.last_adj_close_price = None
         self.findata = findata
         self.params = params
+        self.tickers = params['tickers']
+        self.bars_count = params['window_size']
+        print(params)
     
     @property
     def shape(self):
@@ -386,6 +397,9 @@ class MultiStockState:
         self.last_adj_close_price = adj_close_price
         self.ind += 1
         return reward, done, info
+
+    def set_seed(self, seed):
+        np.random.seed(seed)
             
 class MultiStock3DState(MultiStockState):
 

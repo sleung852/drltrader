@@ -96,6 +96,7 @@ if __name__ == '__main__':
         env = SimStocksEnv(train_data, env_params)
         env_seed = 2 ** 32 - 1 - seed if test else seed
         env.seed(int(env_seed))
+        # logging.info(f"Environment Seed: {env_seed}")
         return env
     
     def make_batch_make_train_env(test):
@@ -109,7 +110,6 @@ if __name__ == '__main__':
     def make_eval_env(seed, test):
         env = SimStocksEnv(eval_data, env_params_val)
         env_seed = 2 ** 32 - 1 - seed if test else seed
-        env.seed(int(env_seed))
         return env
     
     def make_batch_make_eval_env(test):
