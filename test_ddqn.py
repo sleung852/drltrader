@@ -22,8 +22,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # environment settings
     parser.add_argument('--model_dir', type=str)
-    parser.add_argument('--config_file', type=str, default='')
-    parser.add_argument('--env_config', type=str, default='')
+    parser.add_argument('--config_dir', type=str, default='')
     parser.add_argument("--name", type=str, default='')
     parser.add_argument("--gpu", type=bool, default=True)
 
@@ -43,8 +42,8 @@ if __name__ == '__main__':
             'shortsell': False
         }
     else:
-        config = load_config(args.config_file)   
-        env_params = load_config(args.env_config)
+        config = load_config(os.path.join(args.config_dir, 'config.json'))   
+        env_params = load_config(os.path.join(args.config_dir, 'env_params.json'))
     
     env_params['mode'] = 'test'
     
