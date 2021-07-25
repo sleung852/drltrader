@@ -56,6 +56,12 @@ if __name__ == '__main__':
     # temporary solution
     if config['indicators']:
         indicators = ['MACD', 'EMA', 'MA', 'RSI', 'NATR', 'OBV']
+        train =  AssetData(f'data/{ticker}_finance_data_train.csv',
+                           daily=config['daily'],
+                           indicators=indicators,
+                           news=config['news'],
+                           mode='train')
+        indicators_scalars = train.get_indicators_scalers()
     else:
         indicators = []
     
@@ -63,7 +69,8 @@ if __name__ == '__main__':
                            daily=config['daily'],
                            indicators=indicators,
                            news=config['news'],
-                           mode='test')
+                           mode='test',
+                           indicators_scalers=indicators_scalars)
     
     test_env = SimStocksEnv(test_data, env_params)
     obs_size = test_env.observation_space.shape[1]

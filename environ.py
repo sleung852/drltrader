@@ -266,7 +266,7 @@ class PortfolioEnv(gym.Env):
             self.state = MultiStock3DState(multiassetdata, params)
         else:
             raise ValueError('dim_mode must be either 1 or 3')
-        if params['mode'] not in ['train', 'evaluate', 'test']:
+        if params['mode'] not in ['train', 'eval', 'test']:
             raise ValueError("params['mode'] must be either 'train', 'evaluate' or 'test'")
         
         if params['cash']:
@@ -344,7 +344,7 @@ class MultiStockState:
         self.positions_order = self.positions
         self.last_pos = self.positions
         self.bought_price = np.zeros(len(self.tickers)) # why?
-        if self.params['random_offset']:
+        if self.params['random_offset'] and self.params['mode'] == 'train':
             self.ind = np.random.randint(0, self.findata.price_data.shape[0]-self.bars_count)
         else:
             self.ind = 0

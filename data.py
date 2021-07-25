@@ -160,6 +160,8 @@ class MultiAssetData:
                                         on=["time"])
         self.price_data.fillna(method='backfill', inplace=True)
         self._convert_price_data_to_relative_prices()
+        self.price_data.fillna(method='backfill', inplace=True)
+        self.relative_prices.fillna(method='backfill', inplace=True)
                
         if self.news:
             logging.info('Handling news data...')
