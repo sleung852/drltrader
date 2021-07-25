@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 
 from environ import SimStocksEnv
-from model import DRQN_CustomNet, GDQN_CustomNet
+from model import DRQN_CustomNet, GDQN_CustomNet, DRQN_CustomNet2
 from data import AssetData
 from util import save_config, check_and_create_folder
 
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     parser.add_argument("--outdir", type=str, default="results")
     parser.add_argument("--gamma", type=float, default=0.99)
     # network settings
-    parser.add_argument('--model', type=str, default='LSTM', choices=['LSTM', 'GRU'])
+    parser.add_argument('--model', type=str, default='LSTM', choices=['LSTM', 'GRU', 'LSTM2'])
     parser.add_argument('--hidden_size', type=int, default=512)
     parser.add_argument('--load_model', type=str, default='')
     args = parser.parse_args()
@@ -78,17 +78,21 @@ if __name__ == '__main__':
                            news=args.news,
                            mode='train')
     
+    indicators_scalers = train_data.get_indicators_scalers()
+    
     eval_data = AssetData(val_data_dir,
                            daily=args.daily,
                            indicators=indicators, #args.indicators,
                            news=args.news,
-                           mode='eval')
+                           mode='eval',
+                           indicators_scalers=indicators_scalers)
     
     test_data = AssetData(test_data_dir,
                            daily=args.daily,
                            indicators=indicators, #args.indicators,
                            news=args.news,
-                           mode='test')
+                           mode='test',
+                           indicators_scalers=indicators_scalers)
     
     process_seeds = np.arange(args.num_envs) + args.seed * args.num_envs
     
@@ -138,6 +142,14 @@ if __name__ == '__main__':
             args.hidden_size,
             2
         )
+    
+    elif args.model == 'LSTM2':
+        q_func = DRQN_CustomNet2(
+                obs_size,
+                n_actions,
+                args.hidden_size,
+                2
+        )        
 
     optimizer = torch.optim.Adam(
         q_func.parameters(),

@@ -76,6 +76,25 @@ class DRQN_CustomNet(nn.Module):
         # out = out.unsqueeze
         h = self.dropout(out[:,-1,:])
         h = self.l2(h)
+        return pfrl.action_value.DiscreteActionValue(h)
+    
+class DRQN_CustomNet2(nn.Module):
+    def __init__(self, obs_size, n_actions, hidden_size, n_layers):
+        super().__init__()
+        self.l1 = nn.LSTM(obs_size, hidden_size, n_layers, batch_first=True)
+        self.l2 = pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, int(hidden_size/2)))
+        self.l3 = pfrl.nn.FactorizedNoisyLinear(nn.Linear(int(hidden_size/2), n_actions))
+        self.dropout = nn.Dropout()
+        self.relu = nn.ReLU()
+        
+    def forward(self, x):
+        # x = x.unsqueeze(0)
+        out = self.l1(x)[0]
+        # out = out.unsqueeze
+        h = self.dropout(out[:,-1,:])
+        h = self.l2(h)
+        h = self.relu(h)
+        h = self.l3(h)
         return pfrl.action_value.DiscreteActionValue(h) 
     
 class GDQN_CustomNet(nn.Module):
@@ -241,6 +260,51 @@ class SimActor(nn.Module):
         h = self.l3(h)
         h = self.l4(h)
         return h
+    
+    
+class SimpleActor(nn.Module):
+
+    def __init__(self, obs_size, action_size):
+        super().__init__()
+        
+        self.l1 = ConcatObsAndAction()
+        self.l2 = nn.Linear(obs_size + action_size, 512)
+        self.l3 = nn.ReLU()
+        self.l4 = nn.Linear(512, 256)
+        self.l5 = nn.ReLU()
+        self.l6 = nn.Linear(256, 1)
+
+    def forward(self, x):
+        h = self.l1(x)
+        h = self.l2(h)
+        h = self.l3(h)
+        h = self.l4(h)
+        h = self.l5(h)
+        out = self.l6(h)
+        return out
+    
+class SimpleCritic(nn.Module):
+
+    def __init__(self, obs_size, action_size, lower_bound, upper_bound):
+        super().__init__()
+        self.l1 = nn.Linear(obs_size, 512)
+        self.l2 = nn.ReLU()
+        self.l3 = nn.Linear(512, 256)
+        self.l4 = nn.ReLU()
+        self.l5 = nn.Linear(256, action_size)
+        self.l6 = BoundByTanh(low=lower_bound, high=upper_bound)
+        self.l7 = DeterministicHead()
+
+    def forward(self, x):
+        h = self.l1(x)
+        h = self.l2(h)
+        h = self.l3(h)
+        h = self.l4(h)
+        h = self.l5(h)
+        h = self.l6(h)
+        out = self.l7(h)
+        return out  
+
     
 class FCNet(nn.Module):
 

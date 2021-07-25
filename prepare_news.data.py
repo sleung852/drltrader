@@ -2,7 +2,7 @@ import argparse
 import logging
 
 from tqdm import tqdm
-
+from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
 
 if __name__ == '__main__':
@@ -85,7 +85,8 @@ if __name__ == '__main__':
     for col in ['pos', 'neu', 'neg']:
         news[col] = news[col]/sum_col
     news.fillna(value=0, inplace=True)
-    news['freq'] = sum_col/300
+    scaler = MinMaxScaler().fit(sum_col.iloc[:train_len].values.reshape(-1,1))
+    news['freq'] = scaler.transform(sum_col.values.reshape(-1,1))
     
     news[:train_len].to_csv('data/news_train.csv',index=False)
     news[train_len:eval_len].to_csv('data/news_eval.csv',index=False)

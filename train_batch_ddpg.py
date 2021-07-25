@@ -129,8 +129,28 @@ if __name__ == '__main__':
     obs_size = test_env.observation_space.low.size
     action_size = test_env.action_space.low.size
     
-    q_func = SimActor(obs_size + action_size, 1)
-    policy = LSTMCritic(obs_size, action_size)
+    # q_func = SimpleActor(obs_size + action_size, 1)
+    # policy = SimpleCritic(obs_size, action_size, test_env.action_space.low, test_env.action_space.high)
+
+    q_func = nn.Sequential(
+        ConcatObsAndAction(),
+        nn.Linear(obs_size + action_size, 400),
+        nn.ReLU(),
+        nn.Linear(400, 300),
+        nn.ReLU(),
+        nn.Linear(300, 1),
+    )
+    
+    policy = nn.Sequential(
+        nn.Linear(obs_size, 400),
+        nn.ReLU(),
+        nn.Linear(400, 300),
+        nn.ReLU(),
+        nn.Linear(300, action_size),
+        BoundByTanh(low=test_env.action_space.low, high=test_env.action_space.high),
+        DeterministicHead(),
+        # nn.Softmax(3),
+    )
 
     optimizer_actor = torch.optim.Adam(
         q_func.parameters(),
@@ -147,6 +167,7 @@ if __name__ == '__main__':
     replay_buffer = pfrl.replay_buffers.PrioritizedReplayBuffer(
         capacity=1e5
     )
+    replay_buffer = pfrl.replay_buffers.ReplayBuffer(10 ** 6)
     
     explorer = pfrl.explorers.AdditiveGaussian(
         scale=0.1, low=test_env.action_space.low, high=test_env.action_space.high

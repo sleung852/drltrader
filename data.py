@@ -3,6 +3,7 @@ import pandas as pd
 import logging
 from talib import abstract
 import argparse
+from sklearn.preprocessing import MinMaxScaler
 
 class AssetData:
     def __init__(self,
@@ -10,7 +11,8 @@ class AssetData:
                  daily=False,
                  indicators=[],
                  news=False,
-                 mode='train'
+                 mode='train',
+                 indicators_scalers=None
                  ):
         self.data_origin = data_origin
         self.daily = daily
@@ -19,6 +21,8 @@ class AssetData:
         self.mode = mode
         self.price_data = None
         self.relative_prices = None
+        if indicators_scalers is not None and mode != 'train':
+            self.indicators_scalers = indicators_scalers
         self._create_data()
         
     def _create_data(self):
@@ -28,8 +32,7 @@ class AssetData:
         self._add_daily_data()
         self._add_indicators()
         self.relative_prices['volume_1min'] = self.relative_prices['volume_1min'].pct_change()
-        if self.news:
-            pass
+        self._add_news()
             
     def _read_base_data(self):
         self.price_data = pd.read_csv(self.data_origin)
@@ -42,6 +45,7 @@ class AssetData:
             self.price_data = self.price_data.iloc[:,:6]
             self.relative_prices = self.relative_prices.iloc[:,:6]
         else:
+            logging.info('Handling daily data...')
             for day in [1,5,15,30,100]: # in future should provide option for users to adjust
                 self.relative_prices[f'close_{day}d'] = (self.relative_prices[f'close_{day}d'] - self.relative_prices['open_1min']) / self.relative_prices['open_1min']
                 self.relative_prices[f'volume_{day}d'] = (self.relative_prices[f'volume_{day}d'] - self.relative_prices['volume_1min']) / self.relative_prices['volume_1min']
@@ -51,21 +55,30 @@ class AssetData:
         Create indicators using Ta-LIB 
         """
         if len(self.indicators) > 0:
+            logging.info('Handling indicators data...')
+            # create indicators_scalers if train mode, which will be fed
+            # into eval and test
+            if self.mode == 'train':
+                self.indicators_scalers = {}
             df_ohlc = self.price_data.iloc[:,1:6]
             df_ohlc.columns = ['open', 'high', 'low', 'close', 'volume']
             for indicator in self.indicators:
                 indicator_func = abstract.Function(indicator)
                 indicator_data = indicator_func(df_ohlc)
                 if len(indicator_func.output_names) == 1:
-                    self.relative_prices[indicator_func.output_names[0]] = indicator_data
+                    if self.mode == 'train':
+                        self.indicators_scalers[indicator_func.output_names[0]] = MinMaxScaler().fit(indicator_data.values.reshape(-1,1))
+                    self.relative_prices[indicator_func.output_names[0]] = self.indicators_scalers[indicator_func.output_names[0]].transform(indicator_data.values.reshape(-1,1))
                 else:
                     self.relative_prices[indicator_func.output_names] = indicator_data
-                for output_name in indicator_func.output_names:
-                    if self.relative_prices[output_name].mean() > 1:
-                        self.relative_prices[output_name] /= self.relative_prices[f'open_1min']
+                    for output_name in indicator_func.output_names:
+                        if self.mode == 'train':
+                            self.indicators_scalers[output_name] = MinMaxScaler().fit(self.relative_prices[output_name].values.reshape(-1,1))
+                        self.relative_prices[output_name] = self.indicators_scalers[output_name].transform(self.relative_prices[output_name].values.reshape(-1,1))
 
     def _add_news(self):
         if self.news:
+            logging.info('Handling news data...')
             if self.mode == 'train':
                 df_news = pd.read_csv('data/news_train.csv')
             elif self.mode == 'eval':
@@ -77,6 +90,9 @@ class AssetData:
                                             df_news,
                                             how='left',
                                             on=["time"])
+            
+    def get_indicators_scalers(self):
+        return self.indicators_scalers
             
 class MultiAssetData:
     def __init__(self,
@@ -145,10 +161,13 @@ class MultiAssetData:
                                         on=["time"])
         self.price_data.fillna(method='backfill', inplace=True)
         self._convert_price_data_to_relative_prices()
-        
+               
         if self.news:
+            logging.info('Handling news data...')
             if self.mode == 'train':
                 df_news = pd.read_csv('data/news_train.csv')
+            elif self.mode == 'eval':
+                df_news = pd.read_csv('data/news_eval.csv')    
             elif self.mode == 'test':
                 df_news = pd.read_csv('data/news_test.csv')
             df_news['time'] = pd.to_datetime(df_news['time']) 
