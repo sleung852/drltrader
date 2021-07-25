@@ -84,7 +84,7 @@ class AssetData:
                 df_news = pd.read_csv('data/news_eval.csv')    
             elif self.mode == 'test':
                 df_news = pd.read_csv('data/news_test.csv')
-            df_news['time'] = pd.to_datetime(df_news['time']) 
+            # df_news['time'] = pd.to_datetime(df_news['time']) 
             self.relative_prices = pd.merge(self.relative_prices,
                                             df_news,
                                             how='left',
