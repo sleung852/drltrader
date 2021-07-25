@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if not args.config_file and not args.env_config:
+    if not args.config_dir:
         env_params = {
             # environment related
             'mode': 'test',
