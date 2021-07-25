@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from environ import SimStocksEnv
-from model import DRQN_CustomNet, GDQN_CustomNet
+from model import DRQN_CustomNet, GDQN_CustomNet, DRQN_CustomNet2
 from data import AssetData
 from train import DRLAlgoTraderTrainer
 from util import load_config, check_and_create_folder
@@ -78,6 +78,14 @@ if __name__ == '__main__':
         )
     elif config["model"] == 'GRU':
         q_func = GDQN_CustomNet(
+            obs_size,
+            n_actions,
+            config["hidden_size"],
+            2
+        )
+        
+    elif config["model"] == 'LSTM2':
+        q_func = DRQN_CustomNet2(
             obs_size,
             n_actions,
             config["hidden_size"],

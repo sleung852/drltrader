@@ -21,8 +21,7 @@ class AssetData:
         self.mode = mode
         self.price_data = None
         self.relative_prices = None
-        if indicators_scalers is not None and mode != 'train':
-            self.indicators_scalers = indicators_scalers
+        self.indicators_scalers = indicators_scalers
         self._create_data()
         
     def _create_data(self):
