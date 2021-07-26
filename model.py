@@ -170,16 +170,18 @@ class DuellingGRU(nn.Module):
     def __init__(self, obs_size, n_actions, hidden_size):
         super(DuellingGRU, self).__init__()
 
+        self.gru_val = nn.GRU(obs_size, hidden_size, 2, dropout=0.5, batch_first=True)
+
         self.fc_val = nn.Sequential(
-            nn.GRU(obs_size, hidden_size, 2, dropout=0.5, batch_first=True),
             nn.ReLU(),
             pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, hidden_size)),
             nn.ReLU(),
             pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, 1))
         )
 
+        self.gru_adv = nn.GRU(obs_size, hidden_size, 2, dropout=0.5, batch_first=True)
+
         self.fc_adv = nn.Sequential(
-            nn.GRU(obs_size, hidden_size, 2, dropout=0.5, batch_first=True),
             nn.ReLU(),
             pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, hidden_size)),
             nn.ReLU(),
@@ -187,8 +189,10 @@ class DuellingGRU(nn.Module):
         )
 
     def forward(self, x):
-        val = self.fc_val(x)
-        adv = self.fc_adv(x)
+        val = self.gru_val(x)[0]
+        val = self.fc_val(val[:,-1,:])
+        adv = self.gru_adv(x)[0]
+        adv = self.fc_adv(adv[:,-1,:])
         h = val + (adv - adv.mean(dim=1, keepdim=True))
         return pfrl.action_value.DiscreteActionValue(h)
     
