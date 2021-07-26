@@ -90,6 +90,23 @@ class DRQN_CustomNet2(nn.Module):
     def __init__(self, obs_size, n_actions, hidden_size, n_layers):
         super().__init__()
         self.l1 = nn.LSTM(obs_size, hidden_size, n_layers, batch_first=True)
+        self.l2 = pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, int(hidden_size/2)))
+        self.l3 = pfrl.nn.FactorizedNoisyLinear(nn.Linear(int(hidden_size/2), n_actions))
+        self.dropout = nn.Dropout()
+        self.relu = nn.ReLU()
+        
+    def forward(self, x):
+        out = self.l1(x)[0]
+        h = self.dropout(out[:,-1,:])
+        h = self.relu(h)
+        h = self.l2(h)
+        h = self.l3(h)
+        return pfrl.action_value.DiscreteActionValue(h) 
+    
+class DRQN_CustomNet3(nn.Module):
+    def __init__(self, obs_size, n_actions, hidden_size, n_layers):
+        super().__init__()
+        self.l1 = nn.LSTM(obs_size, hidden_size, n_layers, batch_first=True)
         self.l2 = nn.Sequential(
             pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, int(hidden_size/2))),
             nn.Dropout(),
@@ -122,6 +139,7 @@ class GDQN_CustomNet(nn.Module):
         out = self.l2(out)
         return pfrl.action_value.DiscreteActionValue(out)
     
+    
 class DuellingNet(nn.Module):
     def __init__(self, obs_size, n_actions, hidden_size):
         super(DuellingNet, self).__init__()
@@ -136,6 +154,32 @@ class DuellingNet(nn.Module):
 
         self.fc_adv = nn.Sequential(
             pfrl.nn.FactorizedNoisyLinear(nn.Linear(obs_size, hidden_size)),
+            nn.ReLU(),
+            pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, hidden_size)),
+            nn.ReLU(),
+            pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, n_actions))
+        )
+
+    def forward(self, x):
+        val = self.fc_val(x)
+        adv = self.fc_adv(x)
+        h = val + (adv - adv.mean(dim=1, keepdim=True))
+        return pfrl.action_value.DiscreteActionValue(h)
+    
+class DuellingGRU(nn.Module):
+    def __init__(self, obs_size, n_actions, hidden_size):
+        super(DuellingNet, self).__init__()
+
+        self.fc_val = nn.Sequential(
+            nn.GRU(obs_size, hidden_size, 2, dropout=0.5, batch_first=True),
+            nn.ReLU(),
+            pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, hidden_size)),
+            nn.ReLU(),
+            pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, 1))
+        )
+
+        self.fc_adv = nn.Sequential(
+            nn.GRU(obs_size, hidden_size, 2, dropout=0.5, batch_first=True),
             nn.ReLU(),
             pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, hidden_size)),
             nn.ReLU(),

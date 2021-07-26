@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 
 from environ import SimStocksEnv
-from model import DRQN_CustomNet, GDQN_CustomNet, DRQN_CustomNet2
+from model import *
 from data import AssetData
 from util import save_config, check_and_create_folder
 
@@ -39,7 +39,8 @@ if __name__ == '__main__':
     parser.add_argument("--outdir", type=str, default="results")
     parser.add_argument("--gamma", type=float, default=0.99)
     # network settings
-    parser.add_argument('--model', type=str, default='LSTM', choices=['LSTM', 'GRU', 'LSTM2'])
+    parser.add_argument('--model', type=str, default='LSTM',
+                        choices=['LSTM', 'GRU', 'LSTM2', 'LSTM3', 'DuellingGRU'])
     parser.add_argument('--hidden_size', type=int, default=512)
     parser.add_argument('--load_model', type=str, default='')
     args = parser.parse_args()
@@ -149,7 +150,22 @@ if __name__ == '__main__':
                 n_actions,
                 args.hidden_size,
                 2
-        )        
+        )   
+        
+    elif args.model == 'LSTM3':
+        q_func = DRQN_CustomNet3(
+                obs_size,
+                n_actions,
+                args.hidden_size,
+                2
+        )
+
+    elif args.model == 'DuellingGRU':
+        q_func = DuellingGRU(
+                obs_size,
+                n_actions,
+                args.hidden_size
+        )               
 
     optimizer = torch.optim.Adam(
         q_func.parameters(),

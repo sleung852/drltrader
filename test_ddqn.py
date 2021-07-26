@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from environ import SimStocksEnv
-from model import DRQN_CustomNet, GDQN_CustomNet, DRQN_CustomNet2
+from model import *
 from data import AssetData
 from train import DRLAlgoTraderTrainer
 from util import load_config, check_and_create_folder
@@ -74,7 +74,10 @@ if __name__ == '__main__':
                            indicators_scalers=indicators_scalars)
     
     test_env = SimStocksEnv(test_data, env_params)
-    obs_size = test_env.observation_space.shape[1]
+    if config["model"] in ['LSTM', 'GRU', "LSTM2"]:
+        obs_size = test_env.observation_space.shape[1]
+    else:
+        obs_size = test_env.observation_space.low.size
     n_actions = test_env.action_space.n
     
     if config["model"] == 'LSTM':
@@ -98,6 +101,25 @@ if __name__ == '__main__':
             n_actions,
             config["hidden_size"],
             2
+        )
+    
+    elif config["model"] == 'Duelling':
+        q_func = DuellingNet(
+                obs_size,
+                n_actions,
+                config["hidden_size"],
+        )
+    elif config["model"] == 'FC':
+        q_func = FCNet(
+            obs_size= obs_size,
+            n_actions= n_actions,
+            hidden_size=config["hidden_size"]
+        )
+    elif config["model"] == 'DRQN':
+        q_func = FCNet(
+            obs_size= obs_size,
+            n_actions= n_actions,
+            hidden_size=config["hidden_size"]
         )
 
     optimizer = torch.optim.Adam(
