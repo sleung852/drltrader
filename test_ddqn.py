@@ -64,6 +64,7 @@ if __name__ == '__main__':
         indicators_scalars = train.get_indicators_scalers()
     else:
         indicators = []
+        indicators_scalars = None
     
     test_data = AssetData(test_data_dir,
                            daily=config['daily'],

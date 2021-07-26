@@ -49,9 +49,16 @@ class DRQN(nn.Module):
         Based on Financial Trading as a Game:A Deep Reinforcement Learning Approach
         src: https://arxiv.org/pdf/1807.02787.pdf
         """
-        self.l1 = nn.Linear(obs_size, 256)
-        self.l2 = nn.Linear(256, 256)
+        self.l1 = nn.Sequential(
+            nn.Linear(obs_size, 256),
+            nn.ReLU()
+        )
+        self.l2 = nn.Sequential(
+            nn.Linear(256, 256),
+            nn.ReLU()
+        )
         self.l3 = nn.LSTM(256, 256, 1)
+        self.relu = nn.ReLU()
         self.l4 = nn.Linear(256, n_actions)
 
     def forward(self, x):
@@ -60,6 +67,7 @@ class DRQN(nn.Module):
         h = h.unsqueeze(0)
         out, (_,_) = self.l3(h)
         h = out.unsqueeze(0)
+        h = self.relu(h)
         h = self.l4(h)
         return pfrl.action_value.DiscreteActionValue(h)
     
