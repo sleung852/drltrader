@@ -168,7 +168,7 @@ class DuellingNet(nn.Module):
     
 class DuellingGRU(nn.Module):
     def __init__(self, obs_size, n_actions, hidden_size):
-        super(DuellingNet, self).__init__()
+        super(DuellingGRU, self).__init__()
 
         self.fc_val = nn.Sequential(
             nn.GRU(obs_size, hidden_size, 2, dropout=0.5, batch_first=True),
