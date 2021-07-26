@@ -39,7 +39,7 @@ if __name__ == '__main__':
     parser.add_argument("--outdir", type=str, default="results")
     parser.add_argument("--gamma", type=float, default=0.99)
     # network settings
-    parser.add_argument('--model', type=str, default='FC', choices = ['FC', 'LSTM', 'LSTM2'])
+    parser.add_argument('--model', type=str, default='PO', choices = ['PO'])
     parser.add_argument('--hidden_size', type=int, default=512) # add flexibility to model
     parser.add_argument('--load_model', type=str, default='')
     parser.add_argument('--norm_func', type=str, default='linear', choices=['linear', 'softmax'])
@@ -128,81 +128,64 @@ if __name__ == '__main__':
     test_env = PortfolioEnv(test_data, env_params_val)
     obs_size = test_env.observation_space.low.size
     action_size = test_env.action_space.low.size
-
-    feature_size = test_env.state.findata.relative_prices.shape[1] - 1
     
-    if args.model == 'FC':
-        q_func = SimpleActor(obs_size, action_size)
-        policy = SimpleCritic(obs_size, action_size, test_env.action_space.low, test_env.action_space.high)
-    elif args.model == 'LSTM':
-        q_func = SimpleActor(obs_size, action_size)
-        policy = LSTMCritic(obs_size, action_size, test_env.action_space.low, test_env.action_space.high)
-    elif args.model == 'LSTM2':
-        q_func = SimpleActor(obs_size, action_size)
-        policy = LSTMCritic2(action_size,
-                             args.window_size,
-                             feature_size,
-                             len(tickers))
-
-    # q_func = nn.Sequential(
-    #     ConcatObsAndAction(),
-    #     nn.Linear(obs_size + action_size, 400),
-    #     nn.ReLU(),
-    #     nn.Linear(400, 300),
-    #     nn.ReLU(),
-    #     nn.Linear(300, 1),
-    # )
-    
-    # policy = nn.Sequential(
-    #     nn.Linear(obs_size, 400),
-    #     nn.ReLU(),
-    #     nn.Linear(400, 300),
-    #     nn.ReLU(),
-    #     nn.Linear(300, action_size),
-    #     BoundByTanh(low=test_env.action_space.low, high=test_env.action_space.high),
-    #     DeterministicHead(),
-    #     # nn.Softmax(3),
-    # )
-
-    optimizer_actor = torch.optim.Adam(
-        q_func.parameters(),
-        lr=3e-5,
-        weight_decay=1e-9
+    # Normalize observations based on their empirical mean and variance
+    obs_normalizer = pfrl.nn.EmpiricalNormalization(
+        test_env.observation_space.low.size, clip_threshold=5
     )
     
-    optimizer_critic = torch.optim.Adam(
-        policy.parameters(),
-        lr=3e-5,
-        weight_decay=1e-9
+    policy = torch.nn.Sequential(
+        nn.Linear(obs_size, 256),
+        nn.Tanh(),
+        nn.Linear(256, 128),
+        nn.Tanh(),
+        nn.Linear(128, action_size),
+        pfrl.policies.GaussianHeadWithStateIndependentCovariance(
+            action_size=action_size,
+            var_type="diagonal",
+            var_func=lambda x: torch.exp(2 * x),  # Parameterize log std
+            var_param_init=0,  # log std = 0 => std = 1
+        ),
     )
-    
-    replay_buffer = pfrl.replay_buffers.ReplayBuffer(10 ** 6)
-    
-    explorer = pfrl.explorers.AdditiveGaussian(
-        scale=0.1, low=test_env.action_space.low, high=test_env.action_space.high
-    )
-    
-    def burnin_action_func():
-        """Select random actions until model is updated one or more times."""
-        return np.random.uniform(test_env.action_space.low, test_env.action_space.high).astype(np.float32)
 
-    agent = pfrl.agents.DDPG(
-        policy,
-        q_func,
-        optimizer_actor,
-        optimizer_critic,
-        replay_buffer,
-        gamma=0.99,
-        explorer=explorer,
-        replay_start_size=10000,
-        target_update_method="soft",
-        target_update_interval=1000,
-        update_interval=100,
-        soft_update_tau=5e-3,
-        n_times_update=1,
+    vf = torch.nn.Sequential(
+        nn.Linear(obs_size, 256),
+        nn.Tanh(),
+        nn.Linear(256, 128),
+        nn.Tanh(),
+        nn.Linear(128, 1),
+    )
+
+    # we use orthogonal initialization as the latest openai/baselines does.
+    def ortho_init(layer, gain):
+        nn.init.orthogonal_(layer.weight, gain=gain)
+        nn.init.zeros_(layer.bias)
+
+    ortho_init(policy[0], gain=1)
+    ortho_init(policy[2], gain=1)
+    ortho_init(policy[4], gain=1e-2)
+    ortho_init(vf[0], gain=1)
+    ortho_init(vf[2], gain=1)
+    ortho_init(vf[4], gain=1)
+
+    # Combine a policy and a value function into a single model
+    model = pfrl.nn.Branched(policy, vf)
+
+    opt = torch.optim.Adam(model.parameters(), lr=3e-5, weight_decay=1e-9)
+
+    agent = pfrl.agents.PPO(
+        model,
+        opt,
+        obs_normalizer=obs_normalizer,
         gpu=torch.cuda.current_device() if args.gpu else -1,
-        minibatch_size=128,
-        burnin_action_func=burnin_action_func,
+        update_interval=100,
+        minibatch_size=64,
+        epochs=5,
+        clip_eps_vf=None,
+        entropy_coef=0,
+        standardize_advantages=True,
+        gamma=0.995,
+        lambd=0.97,
     )
     
     if args.load_model != '':

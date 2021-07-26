@@ -69,12 +69,12 @@ class DRQN_CustomNet(nn.Module):
         self.l1 = nn.LSTM(obs_size, hidden_size, n_layers, batch_first=True)
         self.l2 = pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, n_actions))
         self.dropout = nn.Dropout()
+        self.relu = nn.ReLU()
         
     def forward(self, x):
-        # x = x.unsqueeze(0)
         out = self.l1(x)[0]
-        # out = out.unsqueeze
         h = self.dropout(out[:,-1,:])
+        h = self.relu(h)
         h = self.l2(h)
         return pfrl.action_value.DiscreteActionValue(h)
     
@@ -82,31 +82,35 @@ class DRQN_CustomNet2(nn.Module):
     def __init__(self, obs_size, n_actions, hidden_size, n_layers):
         super().__init__()
         self.l1 = nn.LSTM(obs_size, hidden_size, n_layers, batch_first=True)
-        self.l2 = pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, int(hidden_size/2)))
+        self.l2 = nn.Sequential(
+            pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, int(hidden_size/2))),
+            nn.Dropout(),
+            nn.ReLU()
+        )
         self.l3 = pfrl.nn.FactorizedNoisyLinear(nn.Linear(int(hidden_size/2), n_actions))
         self.dropout = nn.Dropout()
         self.relu = nn.ReLU()
         
     def forward(self, x):
-        # x = x.unsqueeze(0)
         out = self.l1(x)[0]
-        # out = out.unsqueeze
         h = self.dropout(out[:,-1,:])
-        h = self.l2(h)
         h = self.relu(h)
+        h = self.l2(h)
         h = self.l3(h)
         return pfrl.action_value.DiscreteActionValue(h) 
     
 class GDQN_CustomNet(nn.Module):
     def __init__(self, obs_size, n_actions, hidden_size, n_layers):
         super().__init__()
-        self.l1 = nn.GRU(obs_size, hidden_size, n_layers, batch_first=True)
+        self.l1 = nn.GRU(obs_size, hidden_size, n_layers, dropout=0.5, batch_first=True)
         self.l2 = pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, n_actions))
         self.dropout = nn.Dropout()
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         out = self.l1(x)[0]
         out = self.dropout(out[:,-1,:])
+        out = self.relu(out)
         out = self.l2(out)
         return pfrl.action_value.DiscreteActionValue(out)
     
@@ -221,13 +225,13 @@ class DQNConv1DLarge(nn.Module):
     
 class LSTMCritic(nn.Module):
 
-    def __init__(self, obs_size, n_actions):
+    def __init__(self, obs_size, n_actions, low, high):
         super().__init__()
         
         self.l1 = nn.LSTM(obs_size, 100, 2, batch_first=True)
         self.l2 = nn.Linear(100, n_actions)
         self.l3 = nn.Sequential(
-            BoundByTanh(low=0.0, high=1.0),
+            BoundByTanh(low=low, high=high),
             DeterministicHead(),
         )
 
@@ -239,27 +243,67 @@ class LSTMCritic(nn.Module):
         out = self.l3(h)
         return out
     
-class SimActor(nn.Module):
-
-    def __init__(self, obs_size, n_actions, kind='discrete'):
+class Convert1Dto2D(nn.Module):
+    def __init__(self, window_size, feature_len, asset_count):
         super().__init__()
-        """
-        Based on Financial Trading as a Game:A Deep Reinforcement Learning Approach
-        src: https://arxiv.org/pdf/1807.02787.pdf
-        """
-        self.l0 = ConcatObsAndAction()
-        self.l1 = nn.Linear(obs_size, 256)
-        self.l2 = nn.Linear(256, 128)
-        self.l3 = nn.Linear(128, 64)
-        self.l4 = nn.Linear(64, n_actions)
+        self.window_size = window_size
+        self.feature_len = feature_len
+        self.asset_count = asset_count
+        
+    def forward(self, x):
+        padded_x = nn.functional.pad(x, [0,self.feature_len - self.asset_count%self.feature_len], 'constant', 0)
+        return padded_x.reshape(-1, self.window_size + self.asset_count//self.feature_len + 1, self.feature_len)
+    
+class LSTMCritic2(nn.Module):
+
+    def __init__(self, n_actions, window_size, feature_len, asset_count):
+        super().__init__()
+        
+        self.l0 = Convert1Dto2D(window_size, feature_len, asset_count)
+        self.l1 = nn.LSTM(feature_len, 512, 2, batch_first=True)
+        self.l23 = nn.Sequential(
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, n_actions)
+        )
+        self.l4a = nn.Sigmoid()
+        self.l4b = nn.Softmax(dim=1)
+        self.l5 = DeterministicHead()
+
 
     def forward(self, x):
         h = self.l0(x)
-        h = self.l1(h)
-        h = self.l2(h)
-        h = self.l3(h)
-        h = self.l4(h)
-        return h
+        out, (_,_) = self.l1(h)
+        h = out[:,-1,:]
+        h = self.l23(h)
+        a, w = h[:,0], h[:,1:]
+        a = self.l4a(a)
+        w = self.l4b(w)
+        a = a.reshape(-1,1)
+        h = torch.cat((a,w), 1)
+        return self.l5(h)
+    
+# class SimActor(nn.Module):
+
+#     def __init__(self, obs_size, action_size):
+#         super().__init__()
+#         """
+#         Based on Financial Trading as a Game:A Deep Reinforcement Learning Approach
+#         src: https://arxiv.org/pdf/1807.02787.pdf
+#         """
+#         self.l0 = ConcatObsAndAction()
+#         self.l1 = nn.Linear(obs_size+action_size, 256)
+#         self.l2 = nn.Linear(256, 128)
+#         self.l3 = nn.Linear(128, 64)
+#         self.l4 = nn.Linear(64, 1)
+
+#     def forward(self, x):
+#         h = self.l0(x)
+#         h = self.l1(h)
+#         h = self.l2(h)
+#         h = self.l3(h)
+#         h = self.l4(h)
+#         return h
     
     
 class SimpleActor(nn.Module):

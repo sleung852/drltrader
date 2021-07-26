@@ -176,6 +176,7 @@ if __name__ == '__main__':
         replay_start_size=10000,
         update_interval=100,
         target_update_interval=1000,
+        target_update_method='soft',
         gpu=torch.cuda.current_device() if args.gpu else -1,
     )
     
@@ -199,6 +200,7 @@ if __name__ == '__main__':
         log_interval=100,
         max_episode_len=500,
         eval_max_episode_len=int(1e5),
-        use_tensorboard=True
+        use_tensorboard=True,
+        checkpoint_freq=500000
     )
     
