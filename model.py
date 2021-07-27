@@ -125,14 +125,14 @@ class DRQN_CustomNet3(nn.Module):
         return pfrl.action_value.DiscreteActionValue(h) 
     
 class GDQN_CustomNet2(nn.Module):
-    def __init__(self, obs_size, n_actions, n_layers):
+    def __init__(self, obs_size, n_actions, hidden_size, n_layers):
         super().__init__()
-        self.l1 = nn.GRU(obs_size, 1024, n_layers, dropout=0.5, batch_first=True)
+        self.l1 = nn.GRU(obs_size, hidden_size, n_layers, dropout=0.5, batch_first=True)
         self.l2 = nn.Sequential(
-            pfrl.nn.FactorizedNoisyLinear(nn.Linear(1024, 512)),
+            pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, hidden_size)),
             nn.ReLU()
         )
-        self.l3 = pfrl.nn.FactorizedNoisyLinear(nn.Linear(512, n_actions))
+        self.l3 = pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, n_actions))
         self.dropout = nn.Dropout()
         self.relu = nn.ReLU()
 
