@@ -74,7 +74,7 @@ if __name__ == '__main__':
                            indicators_scalers=indicators_scalars)
     
     test_env = SimStocksEnv(test_data, env_params)
-    if config["model"] in ['LSTM', 'GRU', "LSTM2"]:
+    if config["model"] in ['LSTM', 'GRU', "LSTM2", "GRU2"]:
         obs_size = test_env.observation_space.shape[1]
     else:
         obs_size = test_env.observation_space.low.size
@@ -116,11 +116,17 @@ if __name__ == '__main__':
             hidden_size=config["hidden_size"]
         )
     elif config["model"] == 'DRQN':
-        q_func = FCNet(
+        q_func = DRQN(
             obs_size= obs_size,
             n_actions= n_actions,
             hidden_size=config["hidden_size"]
         )
+    elif config["model"] == 'GRU2':
+        q_func = GDQN_CustomNet2(
+            obs_size,
+            n_actions,
+            2
+        )   
 
     optimizer = torch.optim.Adam(
         q_func.parameters(),

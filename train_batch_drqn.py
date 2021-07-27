@@ -7,6 +7,7 @@ import pfrl
 import pandas as pd
 import os
 from pathlib import Path
+import joblib
 
 from environ import SimStocksEnv
 from model import *
@@ -40,7 +41,7 @@ if __name__ == '__main__':
     parser.add_argument("--gamma", type=float, default=0.99)
     # network settings
     parser.add_argument('--model', type=str, default='LSTM',
-                        choices=['LSTM', 'GRU', 'LSTM2', 'LSTM3', 'DuellingGRU'])
+                        choices=['LSTM', 'GRU', 'GRU2', 'LSTM2', 'LSTM3', 'DuellingGRU'])
     parser.add_argument('--hidden_size', type=int, default=512)
     parser.add_argument('--load_model', type=str, default='')
     args = parser.parse_args()
@@ -167,6 +168,13 @@ if __name__ == '__main__':
                 args.hidden_size
         )               
 
+    elif args.model == 'GRU2':
+        q_func = GDQN_CustomNet2(
+            obs_size,
+            n_actions,
+            2
+        )   
+
     optimizer = torch.optim.Adam(
         q_func.parameters(),
         lr=1e-4,
@@ -203,6 +211,7 @@ if __name__ == '__main__':
     check_and_create_folder(os.path.join('result', model_name))
     save_config(env_params, os.path.join('result', model_name , 'env_params.json'))
     save_config(vars(args), os.path.join('result', model_name , 'config.json'))
+    joblib.dump(indicators_scalers, os.path.join('result', model_name ,'indicators_scalers.gz'))
     
     pfrl.experiments.train_agent_batch_with_evaluation(
         agent=agent,
