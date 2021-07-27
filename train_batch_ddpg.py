@@ -39,7 +39,7 @@ if __name__ == '__main__':
     parser.add_argument("--outdir", type=str, default="results")
     parser.add_argument("--gamma", type=float, default=0.99)
     # network settings
-    parser.add_argument('--model', type=str, default='FC', choices = ['FC', 'LSTM', 'LSTM2'])
+    parser.add_argument('--model', type=str, default='FC', choices = ['FC', 'LSTM', 'LSTM2', 'GDPG'])
     parser.add_argument('--hidden_size', type=int, default=512) # add flexibility to model
     parser.add_argument('--load_model', type=str, default='')
     parser.add_argument('--norm_func', type=str, default='linear', choices=['linear', 'softmax'])
