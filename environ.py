@@ -142,7 +142,7 @@ class OneStockState:
         # create price information
         counter = 0
         bar_size = self.findata.relative_prices.shape[1]-2
-        for idx in range(-self.bars_count,0):
+        for idx in range(self.ind-self.bars_count+1,self.ind+1):
             obs[counter*bar_size:(counter+1)*bar_size] = self.findata.relative_prices.iloc[idx, 2:].values.astype(np.float32)
             counter += 1
         # create position and create position cum PnL info
@@ -231,7 +231,7 @@ class OneStock2DState(OneStockState):
         obs = np.zeros(shape=self.shape).astype(np.float32)
         # create price data
         bar_depth = self.findata.relative_prices.shape[1]-2
-        obs[:self.bars_count,:bar_depth] = self.findata.relative_prices.iloc[self.ind-self.bars_count:self.ind, 2:].values.astype(np.float32)
+        obs[:self.bars_count,:bar_depth] = self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1, 2:].values.astype(np.float32)
         # create position and create position PnL info
         # in last row
         obs[-1,0] = self.long_position
@@ -262,10 +262,10 @@ class PortfolioEnv(gym.Env):
             }
         if params['dim_mode'] == 1:
             self.state = MultiStockState(multiassetdata, params)
-        elif params['dim_mode'] == 3:
-            self.state = MultiStock3DState(multiassetdata, params)
+        elif params['dim_mode'] == 2:
+            self.state = MultiStock2DState(multiassetdata, params)
         else:
-            raise ValueError('dim_mode must be either 1 or 3')
+            raise ValueError('dim_mode must be either 1 or 2')
         if params['mode'] not in ['train', 'eval', 'test']:
             raise ValueError("params['mode'] must be either 'train', 'evaluate' or 'test'")
         
@@ -343,11 +343,11 @@ class MultiStockState:
             self.positions = np.array([1.0/len(self.tickers)]*len(self.tickers))
         self.positions_order = self.positions
         self.last_pos = self.positions
-        self.bought_price = np.zeros(len(self.tickers)) # why?
+        self.bought_price = np.zeros(len(self.tickers))
         if self.params['random_offset'] and self.params['mode'] == 'train':
-            self.ind = np.random.randint(0, self.findata.price_data.shape[0]-self.bars_count)
+            self.ind = np.random.randint(self.bars_count+1, self.findata.price_data.shape[0]-self.bars_count)
         else:
-            self.ind = 0
+            self.ind = self.bars_count+1
         self.trade_count = 0
         
     def encode(self):
@@ -356,15 +356,16 @@ class MultiStockState:
         """
         obs = np.ndarray(shape=self.shape, dtype=np.float32)
         # create price information
-        counter = 0
-        bar_size = self.findata.relative_prices.shape[1]-1
-        for idx in range(-self.bars_count+1,1):
-            obs[counter*bar_size:(counter+1)*bar_size] = self.findata.relative_prices.iloc[idx, 1:].values.astype(np.float32)
-            counter += 1
+        # bar_size = self.findata.relative_prices.shape[1]-1
+        # for idx in range(self.ind-self.bars_count+1,self.ind+1):
+        #     obs[counter*bar_size:(counter+1)*bar_size] = self.findata.relative_prices.iloc[idx, 1:].values.astype(np.float32)
+        #     counter += 1
         # create position and create position PnL info
         if self.params['cash']:
+            obs[:-len(self.tickers)-1] = self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1,1:].values.reshape(1,-1).astype(np.float32)
             obs[-len(self.tickers)-1:] = self.positions.reshape(len(self.tickers)+1,)
         else:
+            obs[:-len(self.tickers)] = self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1,1:].values.reshape(1,-1).astype(np.float32)
             obs[-len(self.tickers):] = self.positions.reshape(len(self.tickers),)
         return obs
     
@@ -401,12 +402,15 @@ class MultiStockState:
     def set_seed(self, seed):
         np.random.seed(seed)
             
-class MultiStock3DState(MultiStockState):
+class MultiStock2DState(MultiStockState):
 
     @property
     def shape(self):
         # n_step, every column except 'time' for each ticker, each ticker + additional info about portfolio status
-        return (int((self.relative_prices.shape[1]-1)/len(self.tickers)), self.bars_count, len(self.tickers) + 1) # + len(self.tickers)*2,
+        if self.params['cash']:
+            pass
+        else:
+            return (int((self.relative_prices.shape[1]-1)/len(self.tickers)), self.bars_count, len(self.tickers) + 1)
         
     def encode(self):
         """
