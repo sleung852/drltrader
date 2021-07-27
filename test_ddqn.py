@@ -125,7 +125,7 @@ if __name__ == '__main__':
         q_func = GDQN_CustomNet2(
             obs_size,
             n_actions,
-            hidden_size=config["hidden_size"],
+            config["hidden_size"],
             2
         )   
 

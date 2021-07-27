@@ -361,6 +361,52 @@ class LSTMCritic2(nn.Module):
         h = torch.cat((a,w), 1)
         return self.l5(h)
     
+class GDPGCritic(nn.Module):
+
+    def __init__(self, n_actions, window_size, feature_len, asset_count):
+        super().__init__()
+        
+        self.l0 = Convert1Dto2D(window_size, feature_len, asset_count)
+        self.l1 = nn.GRU(feature_len, 64, 2, batch_first=True)
+        self.l2 = nn.Linear(64, n_actions)
+        self.l3a = nn.Sigmoid()
+        self.l3b = nn.Softmax(dim=1)
+        self.l4 = DeterministicHead()
+
+
+    def forward(self, x):
+        h = self.l0(x)
+        out, (_,_) = self.l1(h)
+        h = out[:,-1,:]
+        h = self.l2(h)
+        a, w = h[:,0], h[:,1:]
+        a = self.l3a(a)
+        w = self.l3b(w)
+        a = a.reshape(-1,1)
+        h = torch.cat((a,w), 1)
+        return self.l4(h)
+    
+class GDPGActor(nn.Module):
+
+    def __init__(self, obs_size, action_size):
+        super().__init__()
+        
+        self.l1 = ConcatObsAndAction()
+        self.l2 = nn.Linear(obs_size + action_size, 64)
+        self.l3 = nn.ReLU()
+        self.l4 = nn.Linear(64, 32)
+        self.l5 = nn.ReLU()
+        self.l6 = nn.Linear(32, 1)
+
+    def forward(self, x):
+        h = self.l1(x)
+        h = self.l2(h)
+        h = self.l3(h)
+        h = self.l4(h)
+        h = self.l5(h)
+        out = self.l6(h)
+        return out
+    
 # class SimActor(nn.Module):
 
 #     def __init__(self, obs_size, action_size):

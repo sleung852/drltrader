@@ -143,6 +143,12 @@ if __name__ == '__main__':
                              args.window_size,
                              feature_size,
                              len(tickers))
+    elif args.model == 'GDPG':
+        q_func = GDPGActor(obs_size, action_size)
+        policy = GDPGCritic(action_size,
+                             args.window_size,
+                             feature_size,
+                             len(tickers))        
 
     # q_func = nn.Sequential(
     #     ConcatObsAndAction(),
