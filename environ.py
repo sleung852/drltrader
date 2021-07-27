@@ -124,10 +124,10 @@ class OneStockState:
         """
         if self.params['random_offset'] and self.params['mode'] == 'train':
             self.ind = np.random.randint(
-                self.bars_count,
-                self.findata.price_data.shape[0]-self.bars_count)
+                self.bars_count + 1,
+                self.findata.price_data.shape[0]-self.bars_count-1)
         else:
-            self.ind = self.bars_count
+            self.ind = self.bars_count + 1
         # default values
         self.trade_count = 0
         self.long_position = 0
@@ -345,7 +345,10 @@ class MultiStockState:
         self.last_pos = self.positions
         self.bought_price = np.zeros(len(self.tickers))
         if self.params['random_offset'] and self.params['mode'] == 'train':
-            self.ind = np.random.randint(self.bars_count+1, self.findata.price_data.shape[0]-self.bars_count)
+            self.ind = np.random.randint(
+                self.bars_count+1,
+                self.findata.price_data.shape[0]-self.bars_count-1
+                )
         else:
             self.ind = self.bars_count+1
         self.trade_count = 0
@@ -362,10 +365,10 @@ class MultiStockState:
         #     counter += 1
         # create position and create position PnL info
         if self.params['cash']:
-            obs[:-len(self.tickers)-1] = self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1,1:].values.reshape(1,-1).astype(np.float32)
+            obs[:-len(self.tickers)-1] = self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1,1:].values.reshape(-1).astype(np.float32)
             obs[-len(self.tickers)-1:] = self.positions.reshape(len(self.tickers)+1,)
         else:
-            obs[:-len(self.tickers)] = self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1,1:].values.reshape(1,-1).astype(np.float32)
+            obs[:-len(self.tickers)] = self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1,1:].values.reshape(-1).astype(np.float32)
             obs[-len(self.tickers):] = self.positions.reshape(len(self.tickers),)
         return obs
     
