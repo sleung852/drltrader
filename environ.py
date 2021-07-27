@@ -170,7 +170,7 @@ class OneStockState:
         assert isinstance(action, Actions)
         reward = 0.0
         # check whether agent has reached the last data point
-        done = (self.ind == self.findata.price_data.index[-1])
+        done = (self.ind == self.findata.price_data.index[-1]-1)
         current_price = self.findata.price_data.iloc[self.ind].loc['close_1min']
         logging.debug(self.findata.price_data.iloc[self.ind].loc['time'])
         # process actions
@@ -368,12 +368,18 @@ class MultiStockState:
             obs[:-len(self.tickers)-1] = self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1,1:].values.reshape(-1).astype(np.float32)
             obs[-len(self.tickers)-1:] = self.positions.reshape(len(self.tickers)+1,)
         else:
-            obs[:-len(self.tickers)] = self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1,1:].values.reshape(-1).astype(np.float32)
-            obs[-len(self.tickers):] = self.positions.reshape(len(self.tickers),)
+            try:
+                obs[:-len(self.tickers)] = self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1,1:].values.reshape(-1).astype(np.float32)
+                obs[-len(self.tickers):] = self.positions.reshape(len(self.tickers),)
+            except ValueError:
+                print(self.ind)
+                print(self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1,1:].values.reshape(-1).astype(np.float32).shape)
+                print(obs[:-len(self.tickers)].shape)
+                raise ValueError
         return obs
     
     def step(self, action):
-        done = self.ind == self.findata.price_data.index[-1]
+        done = (self.ind == self.findata.price_data.index[-1]-1)
         change_position_bool = action[0] > 0.5
         if self.params['norm_func'] == 'softmax':
             pos = softmax(action[1:])
