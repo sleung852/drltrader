@@ -74,7 +74,7 @@ if __name__ == '__main__':
                            indicators_scalers=indicators_scalars)
     
     test_env = SimStocksEnv(test_data, env_params)
-    if config["model"] in ['LSTM', 'GRU', "LSTM2", "GRU2"]:
+    if config["model"] in ['LSTM', 'GRU', "LSTM2", "GRU2", 'DuellingGRU']:
         obs_size = test_env.observation_space.shape[1]
     else:
         obs_size = test_env.observation_space.low.size
@@ -127,7 +127,14 @@ if __name__ == '__main__':
             n_actions,
             config["hidden_size"],
             2
-        )   
+        )  
+        
+    elif config["model"] == 'DuellingGRU':
+        q_func = DuellingGRU(
+                obs_size,
+                n_actions,
+                config["hidden_size"]
+        )     
 
     optimizer = torch.optim.Adam(
         q_func.parameters(),

@@ -336,14 +336,7 @@ class MultiStockState:
             return (self.findata.relative_prices.shape[1]-1)*self.bars_count + len(self.tickers),
     
     def reset(self):
-        # default values
-        if self.params['cash']:
-            self.positions = np.array([1.0/len(self.tickers)]*(len(self.tickers)+1))
-        else:
-            self.positions = np.array([1.0/len(self.tickers)]*len(self.tickers))
-        self.positions_order = self.positions
-        self.last_pos = self.positions
-        self.bought_price = np.zeros(len(self.tickers))
+        
         if self.params['random_offset'] and self.params['mode'] == 'train':
             self.ind = np.random.randint(
                 self.bars_count+1,
@@ -351,6 +344,16 @@ class MultiStockState:
                 )
         else:
             self.ind = self.bars_count+1
+        
+        # default values
+        if self.params['cash']:
+            self.positions = np.array([1.0/len(self.tickers)]*(len(self.tickers)+1))
+        else:
+            self.positions = np.array([1.0/len(self.tickers)]*len(self.tickers))
+        self.positions_order = self.positions
+        self.last_pos = self.positions
+        self.last_adj_close_price =  np.array([self.findata.price_data.iloc[self.ind-1].loc[f'{ticker}_close_1min'] for ticker in self.tickers], dtype=np.float32)
+
         self.trade_count = 0
         
     def encode(self):
@@ -381,17 +384,16 @@ class MultiStockState:
     def step(self, action):
         done = (self.ind == self.findata.price_data.index[-1]-1)
         change_position_bool = action[0] > 0.5
-        if self.params['norm_func'] == 'softmax':
-            pos = softmax(action[1:])
-        elif self.params['norm_func'] == 'linear':
-            pos = linear(action[1:])
+        # if self.params['norm_func'] == 'softmax':
+        #     pos = softmax(action[1:])
+        # elif self.params['norm_func'] == 'linear':
+        #     pos = linear(action[1:])
+        pos = linear(action[1:])
         if self.params['cash']:
             adj_close_price = np.array([1.0] + [self.findata.price_data.iloc[self.ind].loc[f'{ticker}_close_1min'] for ticker in self.tickers], dtype=np.float32)
         else:
             adj_close_price = np.array([self.findata.price_data.iloc[self.ind].loc[f'{ticker}_close_1min'] for ticker in self.tickers], dtype=np.float32)
         # initialise last_adj_close_price if not initialised
-        if self.last_adj_close_price is None:
-            self.last_adj_close_price = adj_close_price
         info = [pos, adj_close_price, self.last_adj_close_price, change_position_bool, self.findata.price_data.iloc[self.ind].loc['time']]           
         # if the positions_order differs from current positions,
         # this means in last timestep, agent submitted a new position order

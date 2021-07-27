@@ -195,8 +195,8 @@ class DuellingGRU(nn.Module):
         self.gru_val = nn.GRU(obs_size, hidden_size, 2, dropout=0.5, batch_first=True)
 
         self.fc_val = nn.Sequential(
-            nn.ReLU(),
-            pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, hidden_size)),
+            # nn.ReLU(),
+            # pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, hidden_size)),
             nn.ReLU(),
             pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, 1))
         )
@@ -204,8 +204,8 @@ class DuellingGRU(nn.Module):
         self.gru_adv = nn.GRU(obs_size, hidden_size, 2, dropout=0.5, batch_first=True)
 
         self.fc_adv = nn.Sequential(
-            nn.ReLU(),
-            pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, hidden_size)),
+            # nn.ReLU(),
+            # pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, hidden_size)),
             nn.ReLU(),
             pfrl.nn.FactorizedNoisyLinear(nn.Linear(hidden_size, n_actions))
         )
