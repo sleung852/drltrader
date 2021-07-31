@@ -2,7 +2,7 @@ from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import logging
 from pathlib import Path
-from util import check_and_create_folder
+from .util import check_and_create_folder
 
 import os
 import sys

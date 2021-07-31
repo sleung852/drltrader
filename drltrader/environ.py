@@ -11,8 +11,8 @@ import enum
 
 import logging
 
-from data import AssetData, MultiAssetData
-from util import softmax, linear
+from .data import AssetData, MultiAssetData
+from .util import softmax, linear
 
 """
 ** Notes **
