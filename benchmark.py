@@ -2,9 +2,9 @@ import argparse
 import pandas as pd
 import os
 
-from environ import SimStocksEnv,PortfolioEnv, PortfolioEnv2
-from data import AssetData, MultiAssetData
-from train import DRLAlgoTraderTrainer
+from drltrader.environ import SimStocksEnv,PortfolioEnv, PortfolioEnv2
+from drltrader.data import AssetData, MultiAssetData
+from drltrader.train import DRLAlgoTraderTrainer
 
 import logging
 

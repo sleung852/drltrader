@@ -6,11 +6,11 @@ import numpy as np
 import pandas as pd
 import pfrl
 
-from environ import PortfolioEnv
-from model import *
-from data import MultiAssetData
-from train import DRLAlgoTraderTrainer
-from util import load_config
+from drltrader.environ import PortfolioEnv
+from drltrader.model import *
+from drltrader.data import MultiAssetData
+from drltrader.train import DRLAlgoTraderTrainer
+from drltrader.util import load_config
 
 import logging
 
