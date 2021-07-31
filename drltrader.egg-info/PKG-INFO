@@ -1,0 +1,10 @@
+Metadata-Version: 1.0
+Name: drltrader
+Version: 0.0.0
+Summary: A deep reinforcement learning library for training algo trading bots
+Home-page: https://github.com/sleung852/drltrader
+Author: See Ho Leung
+Author-email: seeleung@connect.hku.hk
+License: MIT
+Description: UNKNOWN
+Platform: UNKNOWN
