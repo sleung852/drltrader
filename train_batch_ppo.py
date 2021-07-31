@@ -171,7 +171,7 @@ if __name__ == '__main__':
     # Combine a policy and a value function into a single model
     model = pfrl.nn.Branched(policy, vf)
 
-    opt = torch.optim.Adam(model.parameters(), lr=3e-5, weight_decay=1e-9)
+    opt = torch.optim.Adam(model.parameters(), lr=3e-4, eps=1e-5)
 
     agent = pfrl.agents.PPO(
         model,
@@ -182,7 +182,7 @@ if __name__ == '__main__':
         minibatch_size=64,
         epochs=5,
         clip_eps_vf=None,
-        entropy_coef=0,
+        entropy_coef=0.01,
         standardize_advantages=True,
         gamma=0.995,
         lambd=0.97,

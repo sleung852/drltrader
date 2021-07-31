@@ -6,7 +6,7 @@ import numpy as np
 import pfrl
 import os
 
-from environ import PortfolioEnv
+from environ import PortfolioEnv, PortfolioEnv2
 from model import *
 from data import MultiAssetData
 from util import save_config, check_and_create_folder
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     # environment settings
     parser.add_argument('--data_path', type=str, default='data')
     parser.add_argument('--tickers', type=str, default='aapl_amzn')
-    parser.add_argument('--commission', type=float, default=0.01)
+    parser.add_argument('--commission', type=float, default=0.0)
     parser.add_argument('--cash', type=bool, default=False)
     parser.add_argument('--indicators', type=bool, default=False)
     parser.add_argument('--news', type=bool, default=False)
@@ -33,9 +33,9 @@ if __name__ == '__main__':
     parser.add_argument("--name", type=str, default='')
     parser.add_argument("--num_envs", type=int, default=2)
     parser.add_argument("--gpu", type=bool, default=True)
-    parser.add_argument('--window_size', type=int, default=50)
+    parser.add_argument('--window_size', type=int, default=10)
     parser.add_argument('--random_offset', type=bool, default=True)
-    parser.add_argument('--steps', type=int, default=5e6)
+    parser.add_argument('--steps', type=int, default=2e7)
     parser.add_argument("--outdir", type=str, default="results")
     parser.add_argument("--gamma", type=float, default=0.99)
     # network settings
@@ -45,6 +45,8 @@ if __name__ == '__main__':
     parser.add_argument('--norm_func', type=str, default='linear', choices=['linear', 'softmax'])
 
     args = parser.parse_args()
+    
+    print(args)
     
     tickers = [ticker.lower() for ticker in args.tickers.split('_')]
     
@@ -60,6 +62,8 @@ if __name__ == '__main__':
         'cash': args.cash,
         'norm_func': args.norm_func
     }
+    
+    print(env_params)
     
     env_params_val = env_params.copy()
     env_params_val['mode'] = 'test'
@@ -172,20 +176,20 @@ if __name__ == '__main__':
 
     optimizer_actor = torch.optim.Adam(
         q_func.parameters(),
-        lr=3e-5,
+        lr=1e-3,
         weight_decay=1e-9
     )
     
     optimizer_critic = torch.optim.Adam(
         policy.parameters(),
-        lr=3e-5,
+        lr=1e-3,
         weight_decay=1e-9
     )
     
     replay_buffer = pfrl.replay_buffers.ReplayBuffer(10 ** 6)
     
     explorer = pfrl.explorers.AdditiveGaussian(
-        scale=0.1, low=test_env.action_space.low, high=test_env.action_space.high
+        scale=0.5, low=test_env.action_space.low, high=test_env.action_space.high
     )
     
     def burnin_action_func():
@@ -207,7 +211,7 @@ if __name__ == '__main__':
         soft_update_tau=5e-3,
         n_times_update=1,
         gpu=torch.cuda.current_device() if args.gpu else -1,
-        minibatch_size=128,
+        minibatch_size=64,
         burnin_action_func=burnin_action_func,
     )
     

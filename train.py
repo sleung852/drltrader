@@ -144,14 +144,20 @@ class DRLAlgoTraderTrainer:
             rewards = []
             actions = []
             ts = []
+            infos = {}
             while True:
                 action = self.agent.act(obs)
-                obs, r, done, _ = self.test_env.step(action)
+                obs, r, done, info = self.test_env.step(action)
                 R += r
                 t += 1
                 rewards.append(r)
                 actions.append(action)
                 ts.append(t)
+                for key in info.keys():
+                    if key not in infos:
+                        infos[key] = [info[key]]
+                    else:
+                        infos[key].append(info[key])
                 reset = t == self.eval_max_episode_len
                 self.writer.add_scalar('test_reward/step', r, t)
                 self.writer.add_scalar('test_cum_reward/step', R, t)
@@ -161,26 +167,58 @@ class DRLAlgoTraderTrainer:
                 if done or reset:
                     break
         logging.info(f'Test result - Reward: {R}')
-        return rewards, actions, ts
+        return rewards, actions, ts, infos
     
     def benchmark_BnH(self):
-        obs = self.test_env.reset()
+        _ = self.test_env.reset()
         R = 0
         t = 0
         rewards = []
         actions = []
         ts = []
+        time = []
         action = 1 # Buy
         # first step is buy
-        _, r, done, _ = self.test_env.step(action)
+        _, r, done, info = self.test_env.step(action)
         R += r
         t += 1
         rewards.append(r)
         actions.append(action)
         ts.append(t)
+        time.append(info['time'])
         action = 0 # Hold
         self.writer.add_scalar('benchmark_reward/step', r, t)
         self.writer.add_scalar('benchmark_cum_reward/step', R, t)
+        while True:
+            _, r, done, info = self.test_env.step(action)
+            R += r
+            t += 1
+            rewards.append(r)
+            actions.append(action)
+            ts.append(t)
+            time.append(info['time'])
+            self.writer.add_scalar('benchmark_reward/step', r, t)
+            self.writer.add_scalar('benchmark_cum_reward/step', R, t)
+            if t % (6.5*60*5) == 0:
+                logging.info(f'Step: {t} Cum. Reward: {R:.4f}')
+            if done:
+                break
+        logging.info(f'Test result - Reward: {R}')
+        return rewards, actions, ts, time
+    
+    def benchmark_BnH_multi(self, size, version):
+        _ = self.test_env.reset()
+        R = 0
+        t = 0
+        rewards = []
+        actions = []
+        ts = []
+        if version == 1:
+            action = np.array([0] + [1.0/size]*size)
+        elif version == 2:
+            action = np.array([1.0/size]*size)
+        else:
+            raise ValueError
         while True:
             _, r, done, _ = self.test_env.step(action)
             R += r
@@ -196,6 +234,7 @@ class DRLAlgoTraderTrainer:
                 break
         logging.info(f'Test result - Reward: {R}')
         return rewards, actions, ts
+
         
 
 

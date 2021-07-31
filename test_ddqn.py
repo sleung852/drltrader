@@ -49,8 +49,7 @@ if __name__ == '__main__':
     
     print(config)
     
-    #ticker = config.ticker.lower()
-    ticker = 'aapl'
+    ticker = config['ticker'].lower()
     test_data_dir = f'data/{ticker}_finance_data_test.csv'
     
     # temporary solution
@@ -118,8 +117,7 @@ if __name__ == '__main__':
     elif config["model"] == 'DRQN':
         q_func = DRQN(
             obs_size= obs_size,
-            n_actions= n_actions,
-            hidden_size=config["hidden_size"]
+            n_actions= n_actions
         )
     elif config["model"] == 'GRU2':
         q_func = GDQN_CustomNet2(
@@ -176,12 +174,13 @@ if __name__ == '__main__':
         outdir='result',
     )
     
-    rewards, actions, ts = trainer.test_agent_detail()
-    result = pd.DataFrame(
-        {
+    rewards, actions, ts, infos = trainer.test_agent_detail()
+    data = {
             'step': ts,
             'action': actions,
             'reward': rewards 
         }
-    )
+    for key in infos.keys():
+        data[key] = infos[key]
+    result = pd.DataFrame(data)
     result.to_csv(os.path.join(args.model_dir, 'test_result.csv'), index=False)

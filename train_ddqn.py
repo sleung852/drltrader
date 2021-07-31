@@ -107,6 +107,11 @@ if __name__ == '__main__':
             n_actions= n_actions,
             hidden_size=args.hidden_size
         )
+    elif args.model == 'DRQN':
+        q_func = DRQN(
+            obs_size= obs_size,
+            n_actions= n_actions
+        )
 
     optimizer = torch.optim.Adam(
         q_func.parameters(),

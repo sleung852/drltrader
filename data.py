@@ -34,6 +34,7 @@ class AssetData:
         self._add_news()
             
     def _read_base_data(self):
+        logging.info(f'Loading {self.data_origin}...')
         self.price_data = pd.read_csv(self.data_origin)
         self.relative_prices = self.price_data.copy()
         for col in ['high', 'low', 'close']:

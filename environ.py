@@ -78,11 +78,8 @@ class SimStocksEnv(gym.Env):
     
     def step(self, action_idx):
         action = Actions(action_idx)
-        reward, done = self.state.step(action)
+        reward, done, info = self.state.step(action)
         obs = self.state.encode()
-        info = {
-            "ind": self.state.ind
-        }
         return obs, reward, done, info
         
     # required by gym.Env
@@ -206,8 +203,13 @@ class OneStockState:
         # elif not self.long_position and self.mode=='train':
         #     reward -= 0.0001 # penalty for idle in training
         self.previous_price = current_price
+        info = {
+            'time': self.findata.price_data.iloc[self.ind].loc['time']
+        }
+        
         self.ind += 1
-        return reward, done
+
+        return reward, done, info
     
     def set_seed(self, seed):
         np.random.seed(seed)
@@ -399,10 +401,10 @@ class MultiStockState:
         # this means in last timestep, agent submitted a new position order
         # fill order, assuming transaction price at previous close
         if not np.array_equal(self.positions_order, self.positions):
-            reward = (np.divide(np.multiply(adj_close_price, self.positions_order), np.multiply(self.last_adj_close_price, self.positions)) - 1.0).sum() - self.params['commission']
+            reward = (np.divide(np.multiply(adj_close_price, self.positions_order), np.multiply(self.last_adj_close_price, self.positions)) - 1.0).sum() * 100 - self.params['commission']
             self.positions = self.positions_order
         else: # pnl from simply holding the positions
-            reward = (np.divide(np.multiply(adj_close_price, self.positions), np.multiply(self.last_adj_close_price, self.positions)) - 1.0).sum()    
+            reward = (np.divide(np.multiply(adj_close_price, self.positions), np.multiply(self.last_adj_close_price, self.positions)) - 1.0).sum() * 100
         # placing order
         if change_position_bool:
             self.new_positions = pos
@@ -414,6 +416,197 @@ class MultiStockState:
         np.random.seed(seed)
             
 class MultiStock2DState(MultiStockState):
+
+    @property
+    def shape(self):
+        # n_step, every column except 'time' for each ticker, each ticker + additional info about portfolio status
+        if self.params['cash']:
+            pass
+        else:
+            return (int((self.relative_prices.shape[1]-1)/len(self.tickers)), self.bars_count, len(self.tickers) + 1)
+        
+    def encode(self):
+        """
+        Return current state into an 3D numpy array
+        """
+        obs = np.ndarray(shape=self.shape, dtype=np.float32)
+        # create price information
+        for i, ticker in enumerate(self.tickers):
+            cols = [col.format(ticker.lower()) for col in ['{}_high_1min', '{}_low_1min', '{}_close_1min', '{}_volume_1min']]
+            for day in [1,5,15,30,100]:
+                for new_col in ['{}_close_{}d', '{}_volume_{}d']:
+                    cols.append(new_col.format(ticker, day))
+            obs[:,:,i] = self.relative_prices.iloc[self.ind-self.bars_count:self.ind, :].loc[:,cols].values.astype(np.float32)
+        # create position and create position PnL info
+        obs[:len(self.tickers)+1,0,-1] = self.positions.reshape(len(self.tickers)+1,)
+        # obs[len(self.tickers):len(self.tickers)*2, -1] = self.current_pnl.reshape(len(self.tickers),1)
+        return obs
+    
+class PortfolioEnv2(gym.Env):
+    metadata = {'render.modes': ['human']}
+    spec = EnvSpec("StocksEnv-v2")
+    
+    def __init__(self, multiassetdata, params=None):
+        # default parameters
+        if params is None:
+            params = {
+                # environment related
+                'tickers': ['aapl', 'amzn'],
+                'mode': 'train',
+                'random_offset': True,
+                'cnn': False,
+                'rnn': False,
+                # state related
+                'commission': 0.01, 
+                'n_step': 10,
+                'dim_mode': 1,
+            }
+        if params['dim_mode'] == 1:
+            self.state = MultiStockState2(multiassetdata, params)
+        elif params['dim_mode'] == 2:
+            self.state = MultiStock2DState2(multiassetdata, params)
+        else:
+            raise ValueError('dim_mode must be either 1 or 2')
+        if params['mode'] not in ['train', 'eval', 'test']:
+            raise ValueError("params['mode'] must be either 'train', 'evaluate' or 'test'")
+        
+        if params['cash']:
+            self.action_space = gym.spaces.Box(
+                low=0, high=1,
+                shape=(len(params['tickers'])+1,), dtype=np.float32
+            ) # 1 is for the position for cash
+        else:
+            self.action_space = gym.spaces.Box(
+                low=0, high=1,
+                shape=(len(params['tickers']),), dtype=np.float32
+            )
+        self.observation_space = gym.spaces.Box(
+            low=-np.inf, high=np.inf,
+            shape=self.state.shape, dtype=np.float32
+        )
+        # options
+        self.random_offset = params['random_offset']
+    
+    def reset(self):
+        self.state.reset()
+        return self.state.encode()
+    
+    def step(self, action):
+        reward, done, info_s = self.state.step(action)
+        obs = self.state.encode()
+        info = {
+            "date": info_s[3],
+            "positions": info_s[0],
+            "close": info_s[1],
+            "previous_close": info_s[2],
+        }
+        return obs, reward, done, info
+        
+    # required by gym.Env
+    def render(self, mode='human', close=False):
+        pass
+
+    def close(self):
+        pass
+        
+    def seed(self, seed=None):
+        self.np_random, seed1 = seeding.np_random(seed)
+        seed2 = seeding.hash_seed(seed1 + 1) % 2 ** 31
+        self.state.set_seed(seed2)
+        logging.info(f"Environment Seed 1: {seed2}")
+        return [seed1, seed2]
+    
+class MultiStockState2:
+    def __init__(self, findata, params):
+        # settings
+        self.ind = None
+        self.last_adj_close_price = None
+        self.findata = findata
+        self.params = params
+        self.tickers = params['tickers']
+        self.bars_count = params['window_size']
+        print(params)
+    
+    @property
+    def shape(self):
+        # every column except 'time' * n_step + info about each ticker + info about cash
+        if self.params['cash']:
+            return (self.findata.relative_prices.shape[1]-1)*self.bars_count + len(self.tickers) + 1,
+        else:
+            return (self.findata.relative_prices.shape[1]-1)*self.bars_count + len(self.tickers),
+    
+    def reset(self):
+        
+        if self.params['random_offset'] and self.params['mode'] == 'train':
+            self.ind = np.random.randint(
+                self.bars_count+1,
+                self.findata.price_data.shape[0]-self.bars_count-1
+                )
+        else:
+            self.ind = self.bars_count+1
+        
+        # default values
+        if self.params['cash']:
+            self.positions = np.array([1.0/len(self.tickers)]*(len(self.tickers)+1))
+        else:
+            self.positions = np.array([1.0/len(self.tickers)]*len(self.tickers))
+        self.positions_order = self.positions
+        self.last_pos = self.positions
+        self.last_adj_close_price =  np.array([self.findata.price_data.iloc[self.ind-1].loc[f'{ticker}_close_1min'] for ticker in self.tickers], dtype=np.float32)
+
+        self.trade_count = 0
+        
+    def encode(self):
+        """
+        Return current state in a 1D numpy array
+        """
+        obs = np.ndarray(shape=self.shape, dtype=np.float32)
+        # create price information
+        # bar_size = self.findata.relative_prices.shape[1]-1
+        # for idx in range(self.ind-self.bars_count+1,self.ind+1):
+        #     obs[counter*bar_size:(counter+1)*bar_size] = self.findata.relative_prices.iloc[idx, 1:].values.astype(np.float32)
+        #     counter += 1
+        # create position and create position PnL info
+        if self.params['cash']:
+            obs[:-len(self.tickers)-1] = self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1,1:].values.reshape(-1).astype(np.float32)
+            obs[-len(self.tickers)-1:] = self.positions.reshape(len(self.tickers)+1,)
+        else:
+            try:
+                obs[:-len(self.tickers)] = self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1,1:].values.reshape(-1).astype(np.float32)
+                obs[-len(self.tickers):] = self.positions.reshape(len(self.tickers),)
+            except ValueError:
+                print(self.ind)
+                print(self.findata.relative_prices.iloc[self.ind-self.bars_count+1:self.ind+1,1:].values.reshape(-1).astype(np.float32).shape)
+                print(obs[:-len(self.tickers)].shape)
+                raise ValueError
+        return obs
+    
+    def step(self, action):
+        done = (self.ind == self.findata.price_data.index[-1]-1)
+        pos = linear(action)
+        if self.params['cash']:
+            adj_close_price = np.array([1.0] + [self.findata.price_data.iloc[self.ind].loc[f'{ticker}_close_1min'] for ticker in self.tickers], dtype=np.float32)
+        else:
+            adj_close_price = np.array([self.findata.price_data.iloc[self.ind].loc[f'{ticker}_close_1min'] for ticker in self.tickers], dtype=np.float32)
+        info = [pos, adj_close_price, self.last_adj_close_price, self.findata.price_data.iloc[self.ind].loc['time']]           
+        # if the positions_order differs from current positions,
+        # this means in last timestep, agent submitted a new position order
+        # fill order, assuming transaction price at previous close
+        if not np.array_equal(self.positions_order, self.positions):
+            reward = (np.divide(np.multiply(adj_close_price, self.positions_order), np.multiply(self.last_adj_close_price, self.positions)) - 1.0).sum() - self.params['commission']
+            self.positions = self.positions_order
+        else: # pnl from simply holding the positions
+            reward = (np.divide(np.multiply(adj_close_price, self.positions), np.multiply(self.last_adj_close_price, self.positions)) - 1.0).sum()   
+        # placing order
+        self.new_positions = pos
+        self.last_adj_close_price = adj_close_price
+        self.ind += 1
+        return reward, done, info
+
+    def set_seed(self, seed):
+        np.random.seed(seed)
+            
+class MultiStock2DState2(MultiStockState2):
 
     @property
     def shape(self):
