@@ -2,7 +2,7 @@
 
 ## Introduction
 
-DRLTrader is an open source toolkit to design algorithm trading algorithms in deep reinforcement learning. This is originally designed for my MSc Capstone Research in Computer Science.
+DRLTrader is an open source toolkit to design algorithm trading algorithms in deep reinforcement learning. This is originally designed for my MSc in Computer Science capstone research project.
 
 ![AAPL DRL GDQN Bot](img/bestpnl.png)
 
