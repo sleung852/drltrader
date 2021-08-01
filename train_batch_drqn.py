@@ -9,10 +9,10 @@ import os
 from pathlib import Path
 import joblib
 
-from environ import SimStocksEnv
-from model import *
-from data import AssetData
-from util import save_config, check_and_create_folder
+from drltrader.environ import SimStocksEnv
+from drltrader.model import *
+from drltrader.data import AssetData
+from drltrader.util import save_config, check_and_create_folder
 
 import logging
 

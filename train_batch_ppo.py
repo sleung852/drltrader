@@ -6,10 +6,10 @@ import numpy as np
 import pfrl
 import os
 
-from environ import PortfolioEnv
-from model import *
-from data import MultiAssetData
-from util import save_config, check_and_create_folder
+from drltrader.environ import PortfolioEnv
+from drltrader.model import *
+from drltrader.data import MultiAssetData
+from drltrader.util import save_config, check_and_create_folder
 
 import logging
 
