@@ -7,11 +7,11 @@ import pandas as pd
 import os
 from pathlib import Path
 
-from environ import SimStocksEnv
-from model import DuellingNet, FCNet
-from data import AssetData
-from train import DRLAlgoTraderTrainer
-from util import save_config, check_and_create_folder
+from drltrader.environ import SimStocksEnv
+from drltrader.model import DuellingNet, FCNet
+from drltrader.data import AssetData
+from drltrader.train import DRLAlgoTraderTrainer
+from drltrader.util import save_config, check_and_create_folder
 
 import logging
 
