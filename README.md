@@ -181,3 +181,13 @@ When training deep reinforcement learning models, it can take very long without 
 python train_batch_drqn.py --ticker AAPL --shortsell True --commission 0.01 --gpu True --random_offset True --steps 5000000 --model GDQN --hidden_size 512
 ```
 
+## Example 4: News Sentiment Analysis
+
+News Sentiment Analysis model can be trained via DRLTrader too!
+
+```bash
+cd drltrader/sentiment
+python train_model.py --data <your_data_location> --cuda True --model gru --n_layers 2
+```
+
+On the other hand, a Jupyter Notebook version is also avaible at [here](https://github.com/sleung852/drltrader/blob/main/drltrader/sentiment/Sentiment%20Model%202%20-%20Pre-Trained%20BERT%20%2B%20GRU.ipynb)
