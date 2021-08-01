@@ -29,10 +29,7 @@ python setup.py install
 
 ### Example 1: Train a simple Duelling DDQN agent for AAPL
 
-1. Download AAPL intraday data from here to /data/
-2. Run the following in your terminal
-
-```bash
+```python
 import os
 import pathlib as Path
 
